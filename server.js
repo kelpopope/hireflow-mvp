@@ -146,6 +146,7 @@ app.post("/webhook", async (req, res) => {
 app.get("/shared.js", (req, res) => res.sendFile(path.join(__dirname, "shared.js")));
 app.use(express.static(path.join(__dirname, "public")));
 app.get("/healthz", (req, res) => res.send("ok"));
+app.get("/privacy", (req, res) => res.sendFile(path.join(__dirname, "public", "privacy.html")));
 
 initStore().then(() => {
   app.listen(PORT, () => console.log("HireFlow MVP on port " + PORT + (WHATSAPP_TOKEN ? " (WhatsApp on)" : " (WhatsApp off)")));
