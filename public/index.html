@@ -1,2 +1,673 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HireFlow AI</title></head>
-<body style="font-family:system-ui;padding:24px"><h1>HireFlow AI</h1><p>Сервис запускается. Веб-кабинет появится здесь после следующего обновления.</p></body></html>
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>
+<title>HireFlow AI</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;600&display=swap">
+<style>
+/* Layout: owner workspace on the left, the candidate's WhatsApp on the right, like a café counter with a phone beside it. */
+:root{
+  --bg:#F3F5F2; --surface:#FFFFFF; --sunk:#EAEFEA; --ink:#16201C; --muted:#5B6862; --line:#D9E1DB;
+  --brand:#0E7A55; --brand-ink:#0A5A3F; --brand-soft:#DCF0E5; --on-brand:#FFFFFF;
+  --warn:#A9531A; --warn-soft:#FBE7D8; --bad:#A43A2C; --bad-soft:#F7DFDA; --gold:#E9C46A; --gold-soft:#FBF1D6;
+  --chat:#E6EDE7; --bubble-in:#FFFFFF; --bubble-out:#D3F1E0; --chat-head:#0E5C42;
+  --display:"Unbounded",ui-sans-serif,system-ui,sans-serif; --body:"Onest",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1513; --surface:#17201C; --sunk:#111916; --ink:#E6EEE9; --muted:#9AABA2; --line:#2A3631;
+  --brand:#3DB487; --brand-ink:#7FD1AE; --brand-soft:#163A2C; --on-brand:#08140F;
+  --warn:#E89A62; --warn-soft:#3A2416; --bad:#EE8A7B; --bad-soft:#3B1C17; --gold:#E9C46A; --gold-soft:#36301B;
+  --chat:#0D1311; --bubble-in:#1C2723; --bubble-out:#174332; --chat-head:#123A2C; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1513; --surface:#17201C; --sunk:#111916; --ink:#E6EEE9; --muted:#9AABA2; --line:#2A3631;
+  --brand:#3DB487; --brand-ink:#7FD1AE; --brand-soft:#163A2C; --on-brand:#08140F;
+  --warn:#E89A62; --warn-soft:#3A2416; --bad:#EE8A7B; --bad-soft:#3B1C17; --gold:#E9C46A; --gold-soft:#36301B;
+  --chat:#0D1311; --bubble-in:#1C2723; --bubble-out:#174332; --chat-head:#123A2C; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--body);margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.wrap{max-width:1360px;margin:0 auto;padding-block:16px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px;margin-bottom:16px}
+.logo{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:600;font-size:19px;letter-spacing:-.01em}
+.logo svg{width:30px;height:30px}
+.logo small{font-family:var(--body);font-weight:500;font-size:12px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;display:block;margin-top:-2px}
+.spacer{flex:1}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;font-size:13px;color:var(--muted);white-space:nowrap}
+.chip .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.chip.live .dot{background:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;background:var(--surface);padding:2px}
+.seg button{border:0;background:transparent;border-radius:999px;padding:4px 11px;font-size:13px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+select.vsel{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:6px 10px;max-width:260px}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:20px;align-items:start}
+@media (max-width:980px){.grid{grid-template-columns:minmax(0,1fr)}.phone-col{order:-1}}
+.mobile-switch{display:none}
+@media (max-width:980px){.mobile-switch{display:flex;margin-bottom:12px}.grid[data-show="owner"] .phone-col{display:none}.grid[data-show="phone"] .owner-col{display:none}}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;min-width:0}
+.vhead{padding:18px 20px 14px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:flex-end;border-bottom:1px solid var(--line)}
+.vhead h1{font-family:var(--display);font-weight:600;font-size:22px;line-height:1.15;margin:0;text-wrap:balance}
+.vhead .meta{color:var(--muted);font-size:13.5px}
+.tag{display:inline-block;font-size:11.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:6px;background:var(--gold-soft);color:var(--warn)}
+.tabs{display:flex;gap:4px;padding:8px 12px 0;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs button{border:0;background:none;padding:10px 12px;border-bottom:2px solid transparent;color:var(--muted);font-weight:500;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--brand)}
+.tabpanel{padding:18px 20px 22px}
+
+/* funnel */
+.funnel{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+@media (max-width:720px){.funnel{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.funnel div{padding:12px 12px 10px;border-right:1px solid var(--line);min-width:0}
+.funnel div:last-child{border-right:0}
+@media (max-width:720px){.funnel div:nth-child(3){border-right:0}.funnel div:nth-child(-n+3){border-bottom:1px solid var(--line)}}
+.funnel b{display:block;font-family:var(--display);font-weight:600;font-size:24px;font-variant-numeric:tabular-nums;line-height:1.1}
+.funnel span{font-size:12.5px;color:var(--muted);display:block}
+.funnel em{font-style:normal;font-size:12px;color:var(--brand-ink);font-weight:600}
+.funnel .hl{background:var(--brand-soft)}
+.billing{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;font-size:13.5px;color:var(--muted)}
+.billing strong{color:var(--ink)}
+
+/* candidate list */
+.listhead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin:18px 0 8px}
+.listhead h2,.sec h2{font-size:15px;margin:0;font-weight:600}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.filters button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 10px;font-size:12.5px;color:var(--muted)}
+.filters button[aria-pressed="true"]{border-color:var(--ink);color:var(--ink);font-weight:600}
+.cands{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.cand{border-bottom:1px solid var(--line);background:var(--surface)}
+.cand:last-child{border-bottom:0}
+.crow{display:grid;grid-template-columns:minmax(120px,1.1fr) minmax(0,2fr) auto;gap:10px 14px;align-items:center;padding:12px 14px}
+@media (max-width:720px){.crow{grid-template-columns:minmax(0,1fr) auto}.crow .conds{grid-column:1/-1;order:3}}
+.cname{font-weight:600;display:flex;align-items:center;gap:8px;min-width:0}
+.cname button{all:unset;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cname button:focus-visible{outline:2px solid var(--brand)}
+.csub{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.conds{display:flex;flex-wrap:wrap;gap:5px}
+.cond{font-size:12px;border-radius:6px;padding:2px 7px;background:var(--brand-soft);color:var(--brand-ink);white-space:nowrap}
+.cond.no{background:var(--bad-soft);color:var(--bad)}
+.cond.wait{background:var(--sunk);color:var(--muted)}
+.pill{font-size:12px;font-weight:600;border-radius:999px;padding:3px 9px;white-space:nowrap;background:var(--sunk);color:var(--muted)}
+.pill.good{background:var(--brand-soft);color:var(--brand-ink)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.gold{background:var(--gold-soft);color:var(--warn)}
+.acts{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;align-items:center}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:6px 11px;font-size:13px;font-weight:500;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted)}
+.btn.danger{color:var(--bad)}
+.btn:disabled{opacity:.5;cursor:default}
+input.slot{border:1px solid var(--line);background:var(--bg);border-radius:9px;padding:5px 8px;width:120px;font-size:13px}
+.detail{padding:0 14px 14px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+@media (max-width:720px){.detail{grid-template-columns:minmax(0,1fr)}}
+.detail h3{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:4px 0 6px;font-weight:600}
+.timeline{list-style:none;margin:0;padding:0;font-size:13px}
+.timeline li{display:grid;grid-template-columns:86px minmax(0,1fr);gap:8px;padding:3px 0;border-bottom:1px dashed var(--line)}
+.timeline time{color:var(--muted);font-variant-numeric:tabular-nums}
+.transcript{background:var(--chat);border-radius:10px;padding:10px;max-height:260px;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.empty{padding:28px 16px;text-align:center;color:var(--muted)}
+.empty strong{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
+
+/* retention */
+table.ret{width:100%;border-collapse:collapse;font-size:13.5px}
+table.ret th{text-align:left;font-weight:600;color:var(--muted);font-size:12px;letter-spacing:.04em;text-transform:uppercase;border-bottom:1px solid var(--line);padding:8px 6px}
+table.ret td{border-bottom:1px solid var(--line);padding:9px 6px;vertical-align:middle}
+.tbl{overflow-x:auto}
+.bars{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.bar{display:grid;grid-template-columns:170px minmax(0,1fr) 28px;gap:10px;align-items:center;font-size:13px}
+.bar .track{height:12px;background:var(--sunk);border-radius:6px;overflow:hidden}
+.bar .fill{height:100%;background:var(--warn);border-radius:6px}
+.bar b{font-variant-numeric:tabular-nums;text-align:right}
+.sec{margin-top:22px}
+.note{font-size:13px;color:var(--muted);max-width:68ch}
+
+/* forms */
+form.f{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}
+@media (max-width:720px){form.f{grid-template-columns:minmax(0,1fr)}}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field.wide{grid-column:1/-1}
+.field label,.field .lbl{font-size:13px;font-weight:600}
+.field small{color:var(--muted);font-size:12px}
+.field input,.field select,.field textarea{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:8px 10px;width:100%}
+.days{display:flex;flex-wrap:wrap;gap:6px}
+.days label{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:13px;font-weight:500;cursor:pointer}
+.days input{accent-color:var(--brand)}
+.scale{display:flex;gap:6px;flex-wrap:wrap}
+.scale label{display:inline-flex;align-items:center;justify-content:center;min-width:42px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer;font-weight:500}
+.scale input{position:absolute;opacity:0;pointer-events:none}
+.scale input:checked + span{color:var(--brand-ink);font-weight:700}
+.scale label:has(input:checked){border-color:var(--brand);background:var(--brand-soft)}
+.formfoot{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.linkbox{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--sunk);border-radius:10px;padding:10px 12px;font-size:13.5px}
+.linkbox code{font-size:13px;word-break:break-all}
+.fbgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}
+@media (max-width:720px){.fbgrid{grid-template-columns:minmax(0,1fr)}}
+.stat{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.stat b{font-family:var(--display);font-size:20px;display:block;font-variant-numeric:tabular-nums}
+.stat span{font-size:12.5px;color:var(--muted)}
+.fblist{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.fbitem{border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:13.5px}
+.fbitem .m{color:var(--muted);font-size:12px}
+
+/* phone */
+.phone{border-radius:28px;background:var(--ink);padding:10px;position:sticky;top:max(12px,env(safe-area-inset-top,0px))}
+.screen{border-radius:20px;overflow:hidden;background:var(--chat);display:flex;flex-direction:column;height:min(720px,calc(100vh - 120px));min-height:520px}
+.phead{background:var(--chat-head);color:#F1F7F3;padding:10px 12px;display:flex;align-items:center;gap:10px}
+.avatar{width:34px;height:34px;border-radius:50%;background:#F1F7F3;display:grid;place-items:center;flex:none}
+.avatar svg{width:22px;height:22px}
+.phead .who{min-width:0;flex:1}
+.phead .who b{display:block;font-size:14.5px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.phead .who span{font-size:12px;opacity:.8}
+.phead select{max-width:130px;font-size:12px;border-radius:8px;border:0;padding:4px 6px;background:rgba(255,255,255,.14);color:#F1F7F3}
+.phead select option{color:#16201C}
+.msgs{flex:1;overflow:auto;padding:12px 10px;display:flex;flex-direction:column;gap:6px}
+.msg{max-width:86%;padding:7px 10px 5px;border-radius:10px;font-size:14px;line-height:1.38;white-space:pre-wrap;word-wrap:break-word;box-shadow:0 1px 0 rgba(0,0,0,.06)}
+.msg.bot{align-self:flex-start;background:var(--bubble-in);border-top-left-radius:3px}
+.msg.cand{align-self:flex-end;background:var(--bubble-out);border-top-right-radius:3px}
+.msg time{display:block;text-align:right;font-size:10.5px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
+.daysep{align-self:center;font-size:11.5px;background:var(--surface);color:var(--muted);border-radius:8px;padding:2px 9px;margin:4px 0}
+.quick{display:flex;gap:6px;overflow-x:auto;padding:6px 10px 0}
+.quick button{flex:none;border:1px solid var(--line);background:var(--surface);color:var(--brand-ink);border-radius:999px;padding:5px 11px;font-size:13px;font-weight:600}
+.compose{display:flex;gap:8px;padding:8px 10px 10px}
+.compose input{flex:1;min-width:0;border:0;border-radius:999px;padding:10px 14px;background:var(--surface)}
+.compose button{width:42px;height:42px;border-radius:50%;border:0;background:var(--brand);color:var(--on-brand);display:grid;place-items:center;flex:none}
+.pstart{margin:auto;text-align:center;padding:20px;color:var(--muted);font-size:14px;max-width:290px}
+.pstart .btn{margin-top:10px}
+.under{font-size:12.5px;color:var(--muted);margin-top:10px;padding:0 6px;text-align:center}
+.under code{font-size:12px}
+.toast{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:13.5px;z-index:20;max-width:calc(100% - 32px)}
+.demo{margin-top:16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12.5px;color:var(--muted)}
+@media (prefers-reduced-motion:no-preference){.msg{animation:pop .18s ease-out}@keyframes pop{from{transform:translateY(4px);opacity:.4}}}
+</style>
+
+<div class="wrap" id="app">
+  <header class="top">
+    <div class="logo">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="2" width="28" height="28" rx="8" fill="var(--brand)"/><path d="M9 12h11v6a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5z" fill="none" stroke="var(--on-brand)" stroke-width="2"/><path d="M20 13.5h1.5a2.5 2.5 0 0 1 0 5H20" fill="none" stroke="var(--on-brand)" stroke-width="2"/><path d="m12.2 17.2 1.8 1.8 3.4-3.6" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div>HireFlow AI<small data-i="tagline">Hiring for small cafés</small></div>
+    </div>
+    <span class="chip" id="mode"><span class="dot"></span><span id="modeText">Demo</span></span>
+    <div class="spacer"></div>
+    <select class="vsel" id="vsel" aria-label="Vacancy"></select>
+    <div class="seg" role="group" aria-label="Language">
+      <button type="button" data-lang="en" aria-pressed="true">EN</button>
+      <button type="button" data-lang="ru" aria-pressed="false">RU</button>
+    </div>
+  </header>
+
+  <div class="seg mobile-switch" role="group" aria-label="View">
+    <button type="button" data-show="owner" aria-pressed="true" data-i="ownerView">Owner</button>
+    <button type="button" data-show="phone" aria-pressed="false" data-i="candView">Candidate's WhatsApp</button>
+  </div>
+
+  <div class="grid" id="grid" data-show="owner">
+    <section class="owner-col panel" aria-label="Owner workspace">
+      <div class="vhead" id="vhead"></div>
+      <div class="tabs" role="tablist">
+        <button role="tab" aria-selected="true" data-tab="cands" data-i="tCands">Candidates</button>
+        <button role="tab" aria-selected="false" data-tab="ret" data-i="tRet">Who stayed</button>
+        <button role="tab" aria-selected="false" data-tab="vac" data-i="tVac">Vacancy</button>
+        <button role="tab" aria-selected="false" data-tab="fb" data-i="tFb">Feedback</button>
+      </div>
+      <div class="tabpanel" id="panel"></div>
+    </section>
+
+    <aside class="phone-col" aria-label="Candidate's WhatsApp">
+      <div class="phone">
+        <div class="screen">
+          <div class="phead">
+            <div class="avatar"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M9 12h11v6a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5z" fill="none" stroke="#0E7A55" stroke-width="2.4"/><path d="M20 13.5h1.5a2.5 2.5 0 0 1 0 5H20" fill="none" stroke="#0E7A55" stroke-width="2.4"/></svg></div>
+            <div class="who"><b id="phoneTitle">HireFlow</b><span data-i="online">online · replies instantly</span></div>
+            <select id="csel" aria-label="Candidate"></select>
+          </div>
+          <div class="msgs" id="msgs" aria-live="polite"></div>
+          <div class="quick" id="quick"></div>
+          <form class="compose" id="compose">
+            <input id="msgIn" autocomplete="off" aria-label="Message" placeholder="Message">
+            <button type="submit" aria-label="Send"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12 20 4l-6 16-2.5-6.5z" fill="currentColor"/></svg></button>
+          </form>
+        </div>
+      </div>
+      <p class="under" id="under"></p>
+    </aside>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="shared.js"></script>
+<script>
+(function(){
+"use strict";
+var HF = window.HF;
+var KEY = "hf_mvp_state_v1", LKEY = "hf_mvp_lang";
+var api = false, live = false, waNumber = "", state = HF.emptyState();
+var ui = { lang: "en", tab: "cands", vacancyId: null, simId: null, open: {}, filter: "all" };
+try { var sl = localStorage.getItem(LKEY); if (sl) ui.lang = sl; } catch (e) {}
+
+var I18N = {
+  en: {
+    tagline:"Hiring for small cafés", ownerView:"Owner", candView:"Candidate's WhatsApp", tCands:"Candidates", tRet:"Who stayed", tVac:"Vacancy", tFb:"Feedback",
+    online:"online · replies instantly", demo:"Demo · saved in this browser", live:"Live · WhatsApp connected", server:"Server · WhatsApp not connected",
+    applied:"Applied", fits:"Fit conditions", invited:"Invited", came:"Came", hired:"Hired", stayed:"Stayed 30 days", showup:"show-up",
+    bill:"Bill", billFree:"First vacancy is free.", billRule:"You pay {p} only for a hire who is still working on day 30.", owed:"Owed now",
+    candidates:"Candidates", all:"All", toAct:"Need you", noC:"No candidates yet", noCHint:"Open the phone on the right and apply as a candidate, or share the WhatsApp link from the Vacancy tab.",
+    days:"Days", pay:"Pay", load:"Workload", plan:"Plans", invite:"Invite", inviteAnyway:"Invite anyway", remind:"Send reminder", cameB:"Came", noshow:"No-show", hire:"Hire", reject:"Not hired",
+    d7:"Ask day 7", d30:"Ask day 30", d90:"Ask day 90", markLeft:"Mark as left", details:"Details", hide:"Hide",
+    st:{screening:"Answering",matched:"Fits",mismatch:"Does not fit",invited:"Invited",confirmed:"Confirmed",came:"Came",noshow:"No-show",hired:"Hired",rejected:"Not hired",left:"Left"},
+    hz:["","< 1 month","1–3 months","3+ months"], yes:"yes", no:"no",
+    answers:"Answers", history:"History", chat:"Conversation", exp:"Experience",
+    ev:{applied:"Applied",matched:"Fits all conditions",mismatch:"Did not fit",invited:"Invited",confirmed:"Confirmed the meeting",reschedule:"Asked for another time",reminded:"Reminder sent",reconfirmed:"Confirmed after reminder",cancelled:"Cancelled after reminder",came:"Came to the meeting",noshow:"Did not come",hired:"Hired",rejected:"Not hired",checkin_sent:"Check-in sent",left:"Left the job"},
+    retTitle:"Who stayed and why", retNote:"Each hire gets a short WhatsApp check-in on days 7, 30 and 90. The answers build this café's own record of who stays and why people leave.",
+    name:"Name", hiredOn:"Hired", reasons:"Why people left or want to leave", noHires:"No hires yet", noHiresHint:"Hire a candidate on the Candidates tab, then send the day 7 and day 30 check-ins.",
+    noReasons:"No exits recorded yet.", ok:"OK", risk:"May leave", leftL:"Left", pending:"—",
+    vacTitle:"Vacancy and conditions", vacNote:"Candidates see these conditions in the first WhatsApp reply and confirm each one before the owner sees them.",
+    cafe:"Café name", role:"Role", area:"Address or district", vdays:"Days with shifts", spw:"Shifts a week needed", hours:"Shift hours", vpay:"Pay per shift, ₸", work:"Workload, in one line", start:"Start date", blang:"Bot language",
+    save:"Save changes", create:"Create vacancy", newV:"New vacancy", saved:"Saved", created:"Vacancy created",
+    linkTitle:"How candidates apply", linkLive:"Share this WhatsApp link in Instagram, 2GIS, chats or on the door:", linkDemo:"In this demo, candidates apply in the phone on the right. With WhatsApp connected, this becomes a wa.me link.", copy:"Copy", copied:"Copied",
+    fbTitle:"Tell us what you think", fbNote:"Answers go to the HireFlow team and decide what we build next.", fbRole:"I am", fbOwner:"Café owner or manager", fbCand:"Candidate", fbOther:"Other (teacher, student)",
+    fbEase:"How easy was it to use? (1 hard, 5 easy)", fbPay:"Would you pay {p} only for a hire who stays 30 days?", fbYes:"Yes", fbMaybe:"Maybe", fbNo:"No",
+    fbUseful:"Most useful part", u1:"Instant reply with conditions", u2:"Conditions check before the meeting", u3:"Reminders", u4:"Day 7/30/90 check-ins", u5:"Pay only for a hire who stays",
+    fbMissing:"What is missing or confusing?", send:"Send feedback", thanks:"Thank you, feedback saved", fbCount:"Responses", fbAvg:"Average ease", fbPayYes:"Would pay",
+    comment:"Comment on this page", demoReset:"Reset example data", demoEmpty:"Start empty", example:"Example data",
+    pStart:"This is the candidate's WhatsApp. Start a new application to see what a candidate sees.", pNew:"Apply as a new candidate", newCand:"+ New candidate",
+    underDemo:"Demo: the bot here uses the same logic as the real WhatsApp bot.", underLive:"Real WhatsApp: write {code} to {num}.",
+    slot:"Fri, 15:00", reasonQ:"Reason", needVacancy:"Create a vacancy first", none:"none", wa:"WhatsApp", sim:"Demo",
+    errSave:"Could not save. Check the connection and try again."
+  },
+  ru: {
+    tagline:"Найм для небольших кафе", ownerView:"Владелец", candView:"WhatsApp кандидата", tCands:"Кандидаты", tRet:"Кто остался", tVac:"Вакансия", tFb:"Отзыв",
+    online:"в сети · отвечает сразу", demo:"Демо · данные в этом браузере", live:"Работает · WhatsApp подключён", server:"Сервер · WhatsApp не подключён",
+    applied:"Откликнулись", fits:"Подходят", invited:"Приглашены", came:"Пришли", hired:"Наняты", stayed:"30 дней", showup:"доходимость",
+    bill:"Оплата", billFree:"Первая вакансия бесплатно.", billRule:"Вы платите {p} только за сотрудника, который работает на 30-й день.", owed:"К оплате",
+    candidates:"Кандидаты", all:"Все", toAct:"Ждут вас", noC:"Пока нет кандидатов", noCHint:"Откликнитесь как кандидат в телефоне справа или отправьте ссылку WhatsApp со вкладки «Вакансия».",
+    days:"Дни", pay:"Оплата", load:"Нагрузка", plan:"Планы", invite:"Пригласить", inviteAnyway:"Всё равно пригласить", remind:"Напомнить", cameB:"Пришёл", noshow:"Не пришёл", hire:"Нанять", reject:"Отказать",
+    d7:"Спросить на 7-й день", d30:"Спросить на 30-й день", d90:"Спросить на 90-й день", markLeft:"Отметить уход", details:"Подробнее", hide:"Скрыть",
+    st:{screening:"Отвечает",matched:"Подходит",mismatch:"Не подходит",invited:"Приглашён",confirmed:"Подтвердил",came:"Пришёл",noshow:"Не пришёл",hired:"Нанят",rejected:"Отказ",left:"Ушёл"},
+    hz:["","< 1 мес.","1–3 мес.","3+ мес."], yes:"да", no:"нет",
+    answers:"Ответы", history:"История", chat:"Переписка", exp:"Опыт",
+    ev:{applied:"Откликнулся",matched:"Подходит по всем условиям",mismatch:"Не подошёл",invited:"Приглашён",confirmed:"Подтвердил встречу",reschedule:"Попросил другое время",reminded:"Отправлено напоминание",reconfirmed:"Подтвердил после напоминания",cancelled:"Отменил после напоминания",came:"Пришёл на встречу",noshow:"Не пришёл",hired:"Нанят",rejected:"Отказ",checkin_sent:"Отправлен опрос",left:"Ушёл с работы"},
+    retTitle:"Кто остался и почему", retNote:"Каждому новому сотруднику на 7, 30 и 90 день приходит короткий вопрос в WhatsApp. Ответы собираются в историю этого кафе: кто остаётся и почему уходят.",
+    name:"Имя", hiredOn:"Нанят", reasons:"Почему ушли или хотят уйти", noHires:"Пока никого не наняли", noHiresHint:"Наймите кандидата на вкладке «Кандидаты», затем отправьте опрос на 7-й и 30-й день.",
+    noReasons:"Уходов пока нет.", ok:"Всё хорошо", risk:"Может уйти", leftL:"Ушёл", pending:"—",
+    vacTitle:"Вакансия и условия", vacNote:"Кандидат видит эти условия в первом ответе в WhatsApp и подтверждает каждое, прежде чем владелец увидит анкету.",
+    cafe:"Название кафе", role:"Должность", area:"Адрес или район", vdays:"Дни со сменами", spw:"Нужно смен в неделю", hours:"Часы смены", vpay:"Оплата за смену, ₸", work:"Нагрузка одной строкой", start:"Начало работы", blang:"Язык бота",
+    save:"Сохранить", create:"Создать вакансию", newV:"Новая вакансия", saved:"Сохранено", created:"Вакансия создана",
+    linkTitle:"Как кандидаты откликаются", linkLive:"Разместите ссылку в Instagram, 2GIS, чатах или на двери:", linkDemo:"В демо кандидат откликается в телефоне справа. С подключённым WhatsApp здесь будет ссылка wa.me.", copy:"Копировать", copied:"Скопировано",
+    fbTitle:"Ваше мнение", fbNote:"Ответы получает команда HireFlow, по ним мы решаем, что делать дальше.", fbRole:"Я", fbOwner:"Владелец или управляющий кафе", fbCand:"Кандидат", fbOther:"Другое (преподаватель, студент)",
+    fbEase:"Насколько удобно? (1 сложно, 5 легко)", fbPay:"Заплатили бы {p} только за сотрудника, который проработал 30 дней?", fbYes:"Да", fbMaybe:"Возможно", fbNo:"Нет",
+    fbUseful:"Самое полезное", u1:"Мгновенный ответ с условиями", u2:"Проверка условий до встречи", u3:"Напоминания", u4:"Опросы на 7/30/90 день", u5:"Оплата только за оставшегося",
+    fbMissing:"Чего не хватает или что непонятно?", send:"Отправить", thanks:"Спасибо, отзыв сохранён", fbCount:"Ответов", fbAvg:"Средняя оценка", fbPayYes:"Готовы платить",
+    comment:"Оставить комментарий", demoReset:"Вернуть пример", demoEmpty:"Начать с нуля", example:"Пример",
+    pStart:"Это WhatsApp кандидата. Начните отклик, чтобы увидеть, что видит кандидат.", pNew:"Откликнуться как новый кандидат", newCand:"+ Новый кандидат",
+    underDemo:"Демо: здесь бот работает по той же логике, что и в настоящем WhatsApp.", underLive:"Настоящий WhatsApp: напишите {code} на {num}.",
+    slot:"Пт, 15:00", reasonQ:"Причина", needVacancy:"Сначала создайте вакансию", none:"нет", wa:"WhatsApp", sim:"Демо",
+    errSave:"Не удалось сохранить. Проверьте связь и попробуйте ещё раз."
+  }
+};
+function t(k){ var v = I18N[ui.lang][k]; return v === undefined ? (I18N.en[k] === undefined ? k : I18N.en[k]) : v; }
+function fill(s, o){ return String(s).replace(/\{(\w+)\}/g, function(_, k){ return o[k] != null ? o[k] : ""; }); }
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]; }); }
+function fmtMsg(s){ return esc(s).replace(/\*([^*\n]+)\*/g, "<b>$1</b>"); }
+function $(id){ return document.getElementById(id); }
+function time(ts){ var d = new Date(ts); return d.toLocaleTimeString(ui.lang === "ru" ? "ru-RU" : "en-GB", {hour:"2-digit", minute:"2-digit"}); }
+function date(ts){ var d = new Date(ts); return d.toLocaleDateString(ui.lang === "ru" ? "ru-RU" : "en-GB", {day:"numeric", month:"short"}); }
+function toast(msg){ var el = $("toast"); el.textContent = msg; el.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(function(){ el.hidden = true; }, 2200); }
+
+// ---------- data layer ----------
+function saveLocal(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+function act(action){
+  if (api) {
+    return fetch("api/action", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(action) })
+      .then(function(r){ if (!r.ok) throw new Error(); return r.json(); })
+      .then(function(d){ state = d.state; afterChange(); })
+      .catch(function(){ toast(t("errSave")); });
+  }
+  action.now = Date.now();
+  state = HF.apply(state, action).state;
+  saveLocal(); afterChange();
+  return Promise.resolve();
+}
+function afterChange(){
+  if (state.lastCreated && !state.vacancies.some(function(v){ return v.id === ui.vacancyId; })) ui.vacancyId = state.lastCreated;
+  render();
+}
+function boot(){
+  var done = false;
+  var timer = setTimeout(function(){ if (!done) { done = true; startLocal(); } }, 2500);
+  fetch("api/state", { cache:"no-store" }).then(function(r){
+    if (!r.ok) throw new Error();
+    return r.json();
+  }).then(function(d){
+    if (done || !d || !d.state) throw new Error();
+    done = true; clearTimeout(timer);
+    api = true; live = !!d.live; waNumber = d.waNumber || ""; state = d.state;
+    if (!state.vacancies.length) return act({ type:"reset", seed:true, lang: ui.lang });
+    render();
+    setInterval(poll, 4000);
+  }).catch(function(){ if (!done) { done = true; clearTimeout(timer); startLocal(); } });
+}
+function poll(){
+  if (document.hidden) return;
+  fetch("api/state", { cache:"no-store" }).then(function(r){ return r.json(); }).then(function(d){
+    if (d && d.state && d.state.updatedAt !== state.updatedAt) { state = d.state; render(); }
+  }).catch(function(){});
+}
+function startLocal(){
+  var s = null;
+  try { s = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) {}
+  state = s && s.vacancies ? s : HF.seed(Date.now(), ui.lang);
+  saveLocal(); render();
+}
+
+// ---------- helpers ----------
+function curV(){
+  var v = state.vacancies.filter(function(x){ return x.id === ui.vacancyId; })[0];
+  if (!v) { v = state.vacancies[state.vacancies.length - 1] || null; ui.vacancyId = v && v.id; }
+  return v;
+}
+function candsOf(v){ return state.candidates.filter(function(c){ return v && c.vacancyId === v.id; }); }
+var PILL = { screening:"", matched:"good", mismatch:"bad", invited:"gold", confirmed:"good", came:"good", noshow:"bad", hired:"good", rejected:"", left:"warn" };
+function needsYou(c){ return ["matched","confirmed","came","hired"].indexOf(c.status) >= 0; }
+
+// ---------- render ----------
+function render(){
+  document.documentElement.lang = ui.lang;
+  document.querySelectorAll("[data-i]").forEach(function(el){ el.textContent = t(el.getAttribute("data-i")); });
+  document.querySelectorAll("[data-lang]").forEach(function(b){ b.setAttribute("aria-pressed", String(b.getAttribute("data-lang") === ui.lang)); });
+  var m = $("mode"); m.className = "chip" + (live ? " live" : "");
+  $("modeText").textContent = api ? (live ? t("live") : t("server")) : t("demo");
+  var vs = $("vsel"), v = curV();
+  vs.innerHTML = state.vacancies.map(function(x){ return '<option value="' + x.id + '"' + (v && x.id === v.id ? " selected" : "") + ">" + esc(x.role + " · " + x.cafe + " · " + x.code) + "</option>"; }).join("");
+  vs.hidden = state.vacancies.length < 2;
+  renderHead(v); renderPanel(v); renderPhone(v);
+}
+
+function renderHead(v){
+  var h = $("vhead");
+  if (!v) { h.innerHTML = "<h1>HireFlow AI</h1>"; return; }
+  h.innerHTML = '<div style="min-width:0;flex:1"><div class="meta">' + esc(v.cafe) + " · " + esc(v.area) + " · " + esc(v.code) + (v.example ? ' · <span class="tag">' + t("example") + "</span>" : "") +
+    '</div><h1>' + esc(v.role) + "</h1></div>" +
+    '<div class="meta">' + esc(HF.dayList(v.days, ui.lang === "ru" ? "ru" : "en")) + " · " + esc(v.hours) + " · " + esc(HF.money(v.pay)) + "</div>";
+}
+
+function renderPanel(v){
+  document.querySelectorAll("[data-tab]").forEach(function(b){ b.setAttribute("aria-selected", String(b.getAttribute("data-tab") === ui.tab)); });
+  var p = $("panel");
+  if (ui.tab === "cands") p.innerHTML = v ? candsHTML(v) : vacHTML(null);
+  else if (ui.tab === "ret") p.innerHTML = retHTML(v);
+  else if (ui.tab === "vac") p.innerHTML = vacHTML(v);
+  else p.innerHTML = fbHTML();
+  if (ui.tab === "fb") setupComments();
+}
+
+function candsHTML(v){
+  var m = HF.metrics(state, v.id);
+  var cells = [
+    [m.applied, t("applied"), ""], [m.matched, t("fits"), ""], [m.invited, t("invited"), ""],
+    [m.came, t("came"), m.showRate != null ? m.showRate + "% " + t("showup") : ""], [m.hired, t("hired"), ""],
+    [m.stayed30 + (m.decided30 ? "/" + m.decided30 : ""), t("stayed"), m.retention30 != null ? m.retention30 + "%" : ""],
+  ];
+  var html = '<div class="funnel">' + cells.map(function(c, i){ return '<div' + (i === 5 ? ' class="hl"' : "") + "><b>" + c[0] + "</b><span>" + c[1] + "</span>" + (c[2] ? "<em>" + c[2] + "</em>" : "") + "</div>"; }).join("") + "</div>";
+  html += '<div class="billing"><span><strong>' + t("bill") + ":</strong> " + fill(t("billRule"), { p: HF.money(HF.PRICE) }) + "</span>" +
+    (v.free ? '<span class="pill good">' + t("billFree") + "</span>" : '<span>' + t("owed") + ": <strong>" + HF.money(m.owed) + "</strong></span>") + "</div>";
+  var cs = candsOf(v).slice().reverse();
+  var need = cs.filter(needsYou).length;
+  html += '<div class="listhead"><h2>' + t("candidates") + " · " + cs.length + '</h2><div class="filters">' +
+    '<button type="button" data-filter="all" aria-pressed="' + (ui.filter === "all") + '">' + t("all") + "</button>" +
+    '<button type="button" data-filter="need" aria-pressed="' + (ui.filter === "need") + '">' + t("toAct") + " · " + need + "</button></div></div>";
+  if (ui.filter === "need") cs = cs.filter(needsYou);
+  if (!cs.length) return html + '<div class="cands"><div class="empty"><strong>' + t("noC") + "</strong>" + t("noCHint") + "</div></div>";
+  html += '<div class="cands">' + cs.map(candHTML).join("") + "</div>";
+  if (!api) html += '<div class="demo"><span>' + t("demo") + '</span><button class="btn ghost" type="button" data-act="seed">' + t("demoReset") + '</button><button class="btn ghost" type="button" data-act="empty">' + t("demoEmpty") + "</button></div>";
+  return html;
+}
+
+function cond(ok, label){ return '<span class="cond' + (ok === null ? " wait" : ok ? "" : " no") + '">' + (ok === null ? "… " : ok ? "✓ " : "✗ ") + esc(label) + "</span>"; }
+function candHTML(c){
+  var v = state.vacancies.filter(function(x){ return x.id === c.vacancyId; })[0];
+  var a = c.answers || {}, mm = c.match || HF.evaluate(v, c);
+  var done = c.status !== "screening";
+  var overlap = (a.days || []).filter(function(d){ return v.days.indexOf(d) >= 0; }).length;
+  var conds = [
+    cond(a.days ? mm.days : null, t("days") + (a.days ? " " + overlap + " (≥" + v.shiftsPerWeek + ")" : "")),
+    cond(a.payOk == null ? null : a.payOk, t("pay")),
+    cond(a.workloadOk == null ? null : a.workloadOk, t("load")),
+    cond(a.horizon ? a.horizon >= 2 : null, a.horizon ? I18N[ui.lang].hz[a.horizon] : t("plan")),
+  ].join("");
+  var acts = "";
+  var id = c.id;
+  function b(action, label, cls, extra){ return '<button type="button" class="btn ' + (cls || "") + '" data-act="' + action + '" data-id="' + id + '"' + (extra || "") + ">" + label + "</button>"; }
+  var slotIn = '<input class="slot" id="slot-' + id + '" value="' + esc(c.slot || t("slot")) + '" aria-label="Meeting time">';
+  switch (c.status) {
+    case "matched": acts = slotIn + b("invite", t("invite"), "primary"); break;
+    case "mismatch": acts = slotIn + b("invite", t("inviteAnyway"), ""); break;
+    case "invited": acts = b("remind", t("remind"), ""); break;
+    case "confirmed": acts = (c.reminded ? "" : b("remind", t("remind"), "")) + b("came", t("cameB"), "primary") + b("noshow", t("noshow"), "danger"); break;
+    case "came": acts = b("hire", t("hire"), "primary") + b("reject", t("reject"), ""); break;
+    case "noshow": acts = slotIn + b("invite", t("invite"), ""); break;
+    case "hired":
+      var ck = c.checkins || {};
+      var nxt = !ck.d7 ? 7 : !ck.d30 ? 30 : !ck.d90 ? 90 : 0;
+      if (nxt) acts = b("checkin", t("d" + nxt), "primary", ' data-day="' + nxt + '"');
+      acts += b("leftAsk", t("markLeft"), "ghost");
+      break;
+  }
+  var open = !!ui.open[id];
+  var sub = [c.channel === "whatsapp" ? t("wa") + (c.phone ? " +" + c.phone.slice(0, 4) + "…" + c.phone.slice(-2) : "") : t("sim"), date(c.createdAt)];
+  if (c.slot && ["invited","confirmed"].indexOf(c.status) >= 0) sub.push(c.slot);
+  if (c.rating) sub.push("★ " + c.rating);
+  var html = '<div class="cand"><div class="crow"><div style="min-width:0"><div class="cname"><button type="button" data-act="toggle" data-id="' + id + '" aria-expanded="' + open + '">' + esc(c.name || "…") + '</button><span class="pill ' + (PILL[c.status] || "") + '">' + esc(I18N[ui.lang].st[c.status] || c.status) + "</span></div>" +
+    '<div class="csub">' + esc(sub.join(" · ")) + "</div></div>" +
+    '<div class="conds">' + conds + "</div>" +
+    '<div class="acts">' + acts + '<button type="button" class="btn ghost" data-act="toggle" data-id="' + id + '">' + (open ? t("hide") : t("details")) + "</button></div></div>";
+  if (ui.leftFor === id) {
+    html += '<div class="crow" style="padding-top:0"><div></div><div class="acts" style="justify-content:flex-start"><select id="reason-' + id + '" aria-label="' + t("reasonQ") + '">' +
+      HF.REASONS[ui.lang === "ru" ? "ru" : "en"].slice(1).map(function(r, i){ return '<option value="' + (i + 1) + '">' + esc(r) + "</option>"; }).join("") +
+      '</select>' + b("left", t("markLeft"), "danger") + "</div><div></div></div>";
+  }
+  if (open) {
+    var ev = (c.events || []).map(function(e){ return "<li><time>" + date(e.t) + " " + time(e.t) + "</time><span>" + esc((I18N[ui.lang].ev[e.type] || e.type) + (e.text && e.type !== "left" ? ": " + e.text : "")) + "</span></li>"; }).join("");
+    var tr = (c.messages || []).map(function(m){ return '<div class="msg ' + (m.from === "cand" ? "cand" : "bot") + '">' + fmtMsg(m.text) + "<time>" + time(m.t) + "</time></div>"; }).join("");
+    html += '<div class="detail"><div><h3>' + t("answers") + '</h3><p style="margin:0 0 10px;font-size:13.5px">' + t("exp") + ": " + esc(a.experience || "—") + '</p><h3>' + t("history") + '</h3><ul class="timeline">' + ev + "</ul></div>" +
+      "<div><h3>" + t("chat") + '</h3><div class="transcript">' + tr + "</div></div></div>";
+  }
+  return html + "</div>";
+}
+
+function retHTML(v){
+  var hires = state.candidates.filter(function(c){ return c.hiredAt && (!v || c.vacancyId === v.id); });
+  var html = '<h2 style="font-size:17px;margin:0 0 4px">' + t("retTitle") + '</h2><p class="note" style="margin:0 0 14px">' + t("retNote") + "</p>";
+  if (!hires.length) return html + '<div class="cands"><div class="empty"><strong>' + t("noHires") + "</strong>" + t("noHiresHint") + "</div></div>";
+  function cell(ck){
+    if (!ck) return '<span class="pill">' + t("pending") + "</span>";
+    var R = HF.REASONS[ui.lang === "ru" ? "ru" : "en"];
+    if (ck.status === "ok") return '<span class="pill good">' + t("ok") + "</span>";
+    return '<span class="pill ' + (ck.status === "left" ? "bad" : "warn") + '">' + (ck.status === "left" ? t("leftL") : t("risk")) + "</span>" + (ck.reason ? ' <span class="csub" style="display:inline">' + esc(R[ck.reason]) + "</span>" : "");
+  }
+  html += '<div class="tbl"><table class="ret"><thead><tr><th>' + t("name") + "</th><th>" + t("hiredOn") + "</th><th>7</th><th>30</th><th>90</th></tr></thead><tbody>" +
+    hires.map(function(c){ var k = c.checkins || {}; return "<tr><td><b>" + esc(c.name) + "</b></td><td>" + date(c.hiredAt) + "</td><td>" + cell(k.d7) + "</td><td>" + cell(k.d30) + "</td><td>" + cell(k.d90) + "</td></tr>"; }).join("") +
+    "</tbody></table></div>";
+  var m = HF.metrics(state, v && v.id), R = HF.REASONS[ui.lang === "ru" ? "ru" : "en"];
+  var keys = Object.keys(m.reasons), max = Math.max.apply(null, keys.map(function(k){ return m.reasons[k]; }).concat([1]));
+  html += '<div class="sec"><h2>' + t("reasons") + "</h2>" + (keys.length ? '<div class="bars">' + keys.map(function(k){
+    return '<div class="bar"><span>' + esc(R[k]) + '</span><div class="track"><div class="fill" style="width:' + Math.round(100 * m.reasons[k] / max) + '%"></div></div><b>' + m.reasons[k] + "</b></div>";
+  }).join("") + "</div>" : '<p class="note">' + t("noReasons") + "</p>") + "</div>";
+  return html;
+}
+
+function vacHTML(v){
+  var d = v || { cafe:"", role:"", area:"", days:[1,2,3,4,5], shiftsPerWeek:3, hours:"08:00–16:00", pay:8000, workload:"", start:"", lang: ui.lang };
+  var DN = HF.DAY_NAMES[ui.lang === "ru" ? "ru" : "en"];
+  var days = [1,2,3,4,5,6,7].map(function(i){ return '<label><input type="checkbox" name="days" value="' + i + '"' + (d.days.indexOf(i) >= 0 ? " checked" : "") + ">" + DN[i] + "</label>"; }).join("");
+  var html = '<h2 style="font-size:17px;margin:0 0 4px">' + (v ? t("vacTitle") : t("needVacancy")) + '</h2><p class="note" style="margin:0 0 14px">' + t("vacNote") + "</p>";
+  if (v) {
+    var link = live && waNumber ? "https://wa.me/" + waNumber.replace(/\D/g, "") + "?text=" + encodeURIComponent(v.code) : "";
+    html += '<div class="linkbox" style="margin-bottom:16px"><b>' + t("linkTitle") + ":</b> " + (link ? "<span>" + t("linkLive") + "</span><code id=\"walink\">" + esc(link) + '</code><button type="button" class="btn" data-act="copy">' + t("copy") + "</button>" : "<span>" + t("linkDemo") + "</span>") + "</div>";
+  }
+  function inp(name, label, val, type, wide){ return '<div class="field' + (wide ? " wide" : "") + '"><label for="vf-' + name + '">' + label + '</label><input id="vf-' + name + '" name="' + name + '" type="' + (type || "text") + '" value="' + esc(val) + '" required></div>'; }
+  html += '<form class="f" id="vform" data-id="' + (v ? v.id : "") + '">' +
+    inp("cafe", t("cafe"), d.cafe) + inp("role", t("role"), d.role) + inp("area", t("area"), d.area, "text", true) +
+    '<div class="field wide"><span class="lbl">' + t("vdays") + '</span><div class="days">' + days + "</div></div>" +
+    inp("shiftsPerWeek", t("spw"), d.shiftsPerWeek, "number") + inp("hours", t("hours"), d.hours) +
+    inp("pay", t("vpay"), d.pay, "number") + inp("start", t("start"), d.start) + inp("workload", t("work"), d.workload, "text", true) +
+    '<div class="field"><label for="vf-lang">' + t("blang") + '</label><select id="vf-lang" name="lang"><option value="ru"' + (d.lang === "ru" ? " selected" : "") + '>Русский</option><option value="en"' + (d.lang === "en" ? " selected" : "") + ">English</option></select></div>" +
+    '<div class="formfoot"><button class="btn primary" type="submit">' + (v ? t("save") : t("create")) + "</button>" + (v ? '<button class="btn" type="button" data-act="newV">' + t("newV") + "</button>" : "") + "</div></form>";
+  return html;
+}
+
+function fbHTML(){
+  var P = HF.money(HF.PRICE);
+  var fb = state.feedback || [];
+  var avg = fb.length ? (fb.reduce(function(s, f){ return s + (+f.ease || 0); }, 0) / fb.length).toFixed(1) : "—";
+  var yes = fb.length ? Math.round(100 * fb.filter(function(f){ return f.pay === "yes"; }).length / fb.length) + "%" : "—";
+  function radios(name, opts){ return '<div class="scale">' + opts.map(function(o){ return '<label><input type="radio" name="' + name + '" value="' + o[0] + '" required><span>' + esc(o[1]) + "</span></label>"; }).join("") + "</div>"; }
+  var html = '<h2 style="font-size:17px;margin:0 0 4px">' + t("fbTitle") + '</h2><p class="note" style="margin:0 0 14px">' + t("fbNote") + "</p>";
+  html += '<div class="fbgrid"><div class="stat"><b>' + fb.length + "</b><span>" + t("fbCount") + '</span></div><div class="stat"><b>' + avg + "</b><span>" + t("fbAvg") + '</span></div><div class="stat"><b>' + yes + "</b><span>" + t("fbPayYes") + "</span></div></div>";
+  html += '<form class="f" id="fbform">' +
+    '<div class="field wide"><span class="lbl">' + t("fbRole") + "</span>" + radios("role", [["owner", t("fbOwner")], ["candidate", t("fbCand")], ["other", t("fbOther")]]) + "</div>" +
+    '<div class="field wide"><span class="lbl">' + t("fbEase") + "</span>" + radios("ease", [["1","1"],["2","2"],["3","3"],["4","4"],["5","5"]]) + "</div>" +
+    '<div class="field wide"><span class="lbl">' + fill(t("fbPay"), { p: P }) + "</span>" + radios("pay", [["yes", t("fbYes")], ["maybe", t("fbMaybe")], ["no", t("fbNo")]]) + "</div>" +
+    '<div class="field wide"><label for="fb-useful">' + t("fbUseful") + '</label><select id="fb-useful" name="useful">' + ["u1","u2","u3","u4","u5"].map(function(k){ return '<option value="' + k + '">' + t(k) + "</option>"; }).join("") + "</select></div>" +
+    '<div class="field wide"><label for="fb-missing">' + t("fbMissing") + '</label><textarea id="fb-missing" name="missing" rows="3"></textarea></div>' +
+    '<div class="formfoot"><button class="btn primary" type="submit">' + t("send") + '</button><button class="btn" type="button" id="commentBtn" hidden>' + t("comment") + "</button></div></form>";
+  if (fb.length) {
+    var U = { u1:t("u1"), u2:t("u2"), u3:t("u3"), u4:t("u4"), u5:t("u5") };
+    html += '<div class="fblist">' + fb.slice().reverse().slice(0, 8).map(function(f){
+      return '<div class="fbitem"><div class="m">' + date(f.t) + " · " + esc(f.role) + " · " + esc(f.ease) + "/5 · " + esc(f.pay) + "</div>" + esc(U[f.useful] || "") + (f.missing ? " — " + esc(f.missing) : "") + "</div>";
+    }).join("") + "</div>";
+  }
+  return html;
+}
+
+function setupComments(){
+  if (!window.claude || !window.claude.use) return;
+  window.claude.use("comments").then(function(c){
+    var b = $("commentBtn"); if (!c || !b) return;
+    b.hidden = false;
+    b.onclick = function(){ c.openComposer({ element: $("fbform") }).catch(function(){}); };
+  }).catch(function(){});
+}
+
+// ---------- phone ----------
+function quickFor(c){
+  if (!c) return [];
+  var ru = ui.lang === "ru" || (curV() && curV().lang === "ru");
+  var Y = ru ? ["1 Да", "2 Нет"] : ["1 Yes", "2 No"];
+  switch (c.step) {
+    case "days": return ["1 2 3 4 5", "1 3 5 6", "6 7"];
+    case "pay": case "workload": case "invite": case "remind": return Y;
+    case "horizon": return ru ? ["1 < месяца", "2 1–3 мес.", "3 > 3 мес."] : ["1 < month", "2 1–3 months", "3 3+ months"];
+    case "name": return ru ? ["Айдана", "Ерлан"] : ["Aidana", "Yerlan"];
+    case "exp": return ru ? ["бариста 6 месяцев", "нет"] : ["barista, 6 months", "none"];
+    case "checkin": return ru ? ["1 Всё хорошо", "2 Думаю уйти", "3 Ушёл"] : ["1 All good", "2 Thinking of leaving", "3 I left"];
+    case "reason": return ["1", "2", "3", "4", "5", "6"];
+    case "rate": return ["5", "4", "3", "2", "1"];
+  }
+  return [];
+}
+function simCands(v){ return candsOf(v).filter(function(c){ return c.channel === "sim" || c.channel === "whatsapp"; }); }
+function renderPhone(v){
+  var cs = simCands(v);
+  if (ui.simId && !cs.some(function(c){ return c.id === ui.simId; })) ui.simId = null;
+  if (ui.simId === null && ui._simInit !== true && cs.length) { ui.simId = cs[cs.length - 1].id; ui._simInit = true; }
+  var sel = $("csel");
+  sel.innerHTML = '<option value="">' + esc(t("newCand")) + "</option>" + cs.slice().reverse().map(function(c){ return '<option value="' + c.id + '"' + (c.id === ui.simId ? " selected" : "") + ">" + esc(c.name || "…") + "</option>"; }).join("");
+  $("phoneTitle").textContent = v ? v.cafe : "HireFlow";
+  var c = cs.filter(function(x){ return x.id === ui.simId; })[0];
+  var box = $("msgs");
+  if (!v) { box.innerHTML = '<div class="pstart">' + t("needVacancy") + "</div>"; $("quick").innerHTML = ""; return; }
+  if (!c) {
+    box.innerHTML = '<div class="pstart">' + t("pStart") + '<br><button class="btn primary" type="button" data-act="simStart">' + t("pNew") + "</button></div>";
+    $("quick").innerHTML = "";
+  } else {
+    var last = "";
+    box.innerHTML = (c.messages || []).map(function(m){
+      var d = date(m.t), sep = d !== last ? '<div class="daysep">' + d + "</div>" : ""; last = d;
+      return sep + '<div class="msg ' + (m.from === "cand" ? "cand" : "bot") + '">' + fmtMsg(m.text) + "<time>" + time(m.t) + "</time></div>";
+    }).join("");
+    box.scrollTop = box.scrollHeight;
+    $("quick").innerHTML = quickFor(c).map(function(q){ return '<button type="button" data-quick="' + esc(q) + '">' + esc(q) + "</button>"; }).join("");
+  }
+  var dis = c && c.channel === "whatsapp";
+  $("msgIn").disabled = !!dis; $("msgIn").placeholder = dis ? t("wa") : (ui.lang === "ru" ? "Сообщение" : "Message");
+  $("under").innerHTML = live && waNumber ? fill(t("underLive"), { code: "<code>" + esc(v.code) + "</code>", num: "<b>" + esc(waNumber) + "</b>" }) : t("underDemo");
+}
+function sendSim(text){
+  var v = curV(); if (!v || !text) return;
+  var c = simCands(v).filter(function(x){ return x.id === ui.simId; })[0];
+  if (c && c.channel === "whatsapp") return;
+  if (!c) {
+    var before = state.candidates.map(function(x){ return x.id; });
+    return act({ type:"incoming", channel:"sim", vacancyId: v.id, text: text }).then(function(){
+      var n = state.candidates.filter(function(x){ return before.indexOf(x.id) < 0; })[0];
+      if (n) { ui.simId = n.id; render(); }
+    });
+  }
+  return act({ type:"incoming", channel:"sim", candidateId: c.id, text: text });
+}
+
+// ---------- events ----------
+document.addEventListener("click", function(e){
+  var el = e.target.closest("button"); if (!el) return;
+  if (el.hasAttribute("data-lang")) { ui.lang = el.getAttribute("data-lang"); try { localStorage.setItem(LKEY, ui.lang); } catch (x) {} render(); return; }
+  if (el.hasAttribute("data-tab")) { ui.tab = el.getAttribute("data-tab"); render(); return; }
+  if (el.hasAttribute("data-show")) { $("grid").setAttribute("data-show", el.getAttribute("data-show")); document.querySelectorAll("[data-show]").forEach(function(b){ if (b.tagName === "BUTTON") b.setAttribute("aria-pressed", String(b === el)); }); return; }
+  if (el.hasAttribute("data-filter")) { ui.filter = el.getAttribute("data-filter"); render(); return; }
+  if (el.hasAttribute("data-quick")) { sendSim(el.getAttribute("data-quick")); return; }
+  var a = el.getAttribute("data-act"), id = el.getAttribute("data-id");
+  if (!a) return;
+  if (a === "toggle") { ui.open[id] = !ui.open[id]; render(); return; }
+  if (a === "invite") { var s = $("slot-" + id); act({ type:"invite", id:id, slot: (s && s.value.trim()) || t("slot") }); return; }
+  if (a === "remind") { act({ type:"remind", id:id }); return; }
+  if (a === "came" || a === "noshow") { act({ type:"mark", id:id, status:a }); return; }
+  if (a === "hire") { act({ type:"mark", id:id, status:"hired" }); return; }
+  if (a === "reject") { act({ type:"mark", id:id, status:"rejected" }); return; }
+  if (a === "checkin") { ui.simId = id; act({ type:"checkin", id:id, day: +el.getAttribute("data-day") }); return; }
+  if (a === "leftAsk") { ui.leftFor = ui.leftFor === id ? null : id; render(); return; }
+  if (a === "left") { var r = $("reason-" + id); ui.leftFor = null; act({ type:"ownerCheck", id:id, day:30, stayed:false, reason: +(r && r.value) || 6 }); return; }
+  if (a === "seed") { ui.simId = null; ui._simInit = false; act({ type:"reset", seed:true, lang: ui.lang }); return; }
+  if (a === "empty") { ui.simId = null; act({ type:"reset", seed:false }); ui.tab = "vac"; return; }
+  if (a === "newV") { ui.vacancyId = "__new"; renderPanelNew(); return; }
+  if (a === "simStart") { var v = curV(); if (v) sendSim((v.lang === "en" ? "Hello! " : "Здравствуйте! ") + v.code); return; }
+  if (a === "copy") {
+    var txt = $("walink").textContent;
+    try { navigator.clipboard.writeText(txt).then(function(){ toast(t("copied")); }, function(){ selectText($("walink")); }); } catch (x) { selectText($("walink")); }
+    return;
+  }
+});
+function selectText(n){ var r = document.createRange(); r.selectNodeContents(n); var s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+function renderPanelNew(){ $("panel").innerHTML = vacHTML(null); }
+document.addEventListener("submit", function(e){
+  if (e.target.id === "compose") { e.preventDefault(); var i = $("msgIn"); var v = i.value.trim(); i.value = ""; sendSim(v); return; }
+  if (e.target.id === "vform") {
+    e.preventDefault();
+    var f = e.target, data = {};
+    ["cafe","role","area","shiftsPerWeek","hours","pay","start","workload","lang"].forEach(function(k){ data[k] = f.elements[k].value.trim(); });
+    data.days = Array.prototype.filter.call(f.querySelectorAll('input[name="days"]'), function(x){ return x.checked; }).map(function(x){ return +x.value; });
+    var id = f.getAttribute("data-id");
+    if (id) act({ type:"updateVacancy", id:id, data:data }).then(function(){ toast(t("saved")); });
+    else act({ type:"createVacancy", data:data }).then(function(){ ui.vacancyId = state.lastCreated; ui.simId = null; ui.tab = "cands"; render(); toast(t("created")); });
+    return;
+  }
+  if (e.target.id === "fbform") {
+    e.preventDefault();
+    var g = e.target, val = function(n){ var x = g.querySelector('[name="' + n + '"]:checked') || g.elements[n]; return x ? x.value : ""; };
+    act({ type:"feedback", data:{ role: val("role"), ease: val("ease"), pay: val("pay"), useful: g.elements.useful.value, missing: g.elements.missing.value.trim().slice(0, 600), lang: ui.lang } }).then(function(){ toast(t("thanks")); });
+  }
+});
+$("vsel").addEventListener("change", function(e){ ui.vacancyId = e.target.value; ui.simId = null; ui._simInit = false; render(); });
+$("csel").addEventListener("change", function(e){ ui.simId = e.target.value || null; ui._simInit = true; render(); });
+
+boot();
+})();
+</script>
+
+</body></html>
