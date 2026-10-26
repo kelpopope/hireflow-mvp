@@ -29,10 +29,12 @@ async function initStore() {
 async function load() {
   if (pool) {
     const r = await pool.query("select body from hf_state where id = 1");
-    return r.rows[0] ? r.rows[0].body : HF.emptyState();
+    return r.rows[0] ? r.rows[0].body : seeded();
   }
-  try { return JSON.parse(fs.readFileSync(FILE, "utf8")); } catch (e) { return HF.emptyState(); }
+  try { return JSON.parse(fs.readFileSync(FILE, "utf8")); } catch (e) { return seeded(); }
 }
+// The free server loses data.json when it sleeps; start again from the example vacancy (code HF-101).
+function seeded() { return HF.seed(Date.now(), process.env.SEED_LANG || "ru"); }
 async function save(s) {
   if (pool) {
     await pool.query("insert into hf_state (id, body) values (1, $1) on conflict (id) do update set body = $1", [s]);
@@ -66,6 +68,7 @@ async function sendWhatsApp(to, text) {
       body: JSON.stringify(body),
     });
     if (!res.ok) console.error("WhatsApp send failed", res.status, await res.text());
+    else console.log("WhatsApp sent to", to.slice(0, 4) + "…");
   } catch (e) {
     console.error("WhatsApp send error", e.message);
   }
@@ -121,6 +124,7 @@ app.get("/webhook", (req, res) => {
 // Incoming WhatsApp messages
 app.post("/webhook", async (req, res) => {
   res.sendStatus(200); // answer Meta at once
+  console.log("webhook:", JSON.stringify(req.body).slice(0, 400));
   try {
     const entries = (req.body && req.body.entry) || [];
     for (const e of entries) {
