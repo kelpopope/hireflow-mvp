@@ -59,16 +59,25 @@ function run(action) {
 }
 
 // ---------- WhatsApp ----------
+async function postMessage(to, text) {
+  const body = { messaging_product: "whatsapp", to, type: "text", text: { body: text.slice(0, 4000) } };
+  const res = await fetch(`${GRAPH}/${PHONE_NUMBER_ID}/messages`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return { ok: res.ok, status: res.status, text: res.ok ? "" : await res.text() };
+}
 async function sendWhatsApp(to, text) {
   if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID || !to) return;
-  const body = { messaging_product: "whatsapp", to, type: "text", text: { body: text.slice(0, 4000) } };
   try {
-    const res = await fetch(`${GRAPH}/${PHONE_NUMBER_ID}/messages`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) console.error("WhatsApp send failed", res.status, await res.text());
+    let r = await postMessage(to, text);
+    // Meta's test console stores Kazakh/Russian numbers with a trunk "8" (+7 8 7xx...).
+    // If the number is "not in allowed list", retry in that stored form.
+    if (!r.ok && r.text.indexOf("131030") >= 0 && /^7\d{10}$/.test(to)) {
+      r = await postMessage("78" + to.slice(1), text);
+    }
+    if (!r.ok) console.error("WhatsApp send failed", r.status, r.text);
     else console.log("WhatsApp sent to", to.slice(0, 4) + "…");
   } catch (e) {
     console.error("WhatsApp send error", e.message);
