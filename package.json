@@ -1,0 +1,15 @@
+{
+  "name": "hireflow-mvp",
+  "version": "0.1.0",
+  "description": "HireFlow AI MVP: WhatsApp hiring assistant and owner web service for small cafés",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build:artifact": "node tools/build-artifact.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "express": "^4.21.2",
+    "pg": "^8.13.1"
+  }
+}
