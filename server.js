@@ -29,9 +29,10 @@ async function initStore() {
 async function load() {
   if (pool) {
     const r = await pool.query("select body from hf_state where id = 1");
-    return r.rows[0] ? r.rows[0].body : seeded();
+    if (r.rows[0]) return r.rows[0].body;
+    const s = seeded(); await save(s); return s;
   }
-  try { return JSON.parse(fs.readFileSync(FILE, "utf8")); } catch (e) { return seeded(); }
+  try { return JSON.parse(fs.readFileSync(FILE, "utf8")); } catch (e) { const s = seeded(); fs.writeFileSync(FILE, JSON.stringify(s)); return s; }
 }
 // The free server loses data.json when it sleeps; start again from the example vacancy (code HF-101).
 function seeded() { return HF.seed(Date.now(), process.env.SEED_LANG || "ru"); }
