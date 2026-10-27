@@ -284,7 +284,7 @@ var I18N = {
     st:{screening:"Answering",matched:"Fits",mismatch:"Does not fit",invited:"Invited",confirmed:"Confirmed",came:"Came",noshow:"No-show",hired:"Hired",rejected:"Not hired",left:"Left"},
     hz:["","< 1 month","1–3 months","3+ months"], yes:"yes", no:"no",
     answers:"Answers", history:"History", chat:"Conversation", exp:"Experience",
-    ev:{applied:"Applied",matched:"Fits all conditions",mismatch:"Did not fit",invited:"Invited",confirmed:"Confirmed the meeting",reschedule:"Asked for another time",reminded:"Reminder sent",reconfirmed:"Confirmed after reminder",cancelled:"Cancelled after reminder",came:"Came to the meeting",noshow:"Did not come",hired:"Hired",rejected:"Not hired",checkin_sent:"Check-in sent",left:"Left the job"},
+    ev:{applied:"Applied",matched:"Fits all conditions",mismatch:"Did not fit",invited:"Invited",confirmed:"Confirmed the meeting",reschedule:"Asked for another time",reminded:"Reminder sent",reconfirmed:"Confirmed after reminder",cancelled:"Cancelled after reminder",came:"Came to the meeting",noshow:"Did not come",hired:"Hired",rejected:"Not hired",checkin_sent:"Check-in sent",left:"Left the job",risk:"Says they may leave"},
     retTitle:"Who stayed and why", retNote:"Each hire gets a short WhatsApp check-in on days 7, 30 and 90. The answers build this café's own record of who stays and why people leave.",
     name:"Name", hiredOn:"Hired", reasons:"Why people left or want to leave", noHires:"No hires yet", noHiresHint:"Hire a candidate on the Candidates tab, then send the day 7 and day 30 check-ins.",
     noReasons:"No exits recorded yet.", ok:"OK", risk:"May leave", leftL:"Left", pending:"—",
@@ -313,7 +313,7 @@ var I18N = {
     st:{screening:"Отвечает",matched:"Подходит",mismatch:"Не подходит",invited:"Приглашён",confirmed:"Подтвердил",came:"Пришёл",noshow:"Не пришёл",hired:"Нанят",rejected:"Отказ",left:"Ушёл"},
     hz:["","< 1 мес.","1–3 мес.","3+ мес."], yes:"да", no:"нет",
     answers:"Ответы", history:"История", chat:"Переписка", exp:"Опыт",
-    ev:{applied:"Откликнулся",matched:"Подходит по всем условиям",mismatch:"Не подошёл",invited:"Приглашён",confirmed:"Подтвердил встречу",reschedule:"Попросил другое время",reminded:"Отправлено напоминание",reconfirmed:"Подтвердил после напоминания",cancelled:"Отменил после напоминания",came:"Пришёл на встречу",noshow:"Не пришёл",hired:"Нанят",rejected:"Отказ",checkin_sent:"Отправлен опрос",left:"Ушёл с работы"},
+    ev:{applied:"Откликнулся",matched:"Подходит по всем условиям",mismatch:"Не подошёл",invited:"Приглашён",confirmed:"Подтвердил встречу",reschedule:"Попросил другое время",reminded:"Отправлено напоминание",reconfirmed:"Подтвердил после напоминания",cancelled:"Отменил после напоминания",came:"Пришёл на встречу",noshow:"Не пришёл",hired:"Нанят",rejected:"Отказ",checkin_sent:"Отправлен опрос",left:"Ушёл с работы",risk:"Говорит, что может уйти"},
     retTitle:"Кто остался и почему", retNote:"Каждому новому сотруднику на 7, 30 и 90 день приходит короткий вопрос в WhatsApp. Ответы собираются в историю этого кафе: кто остаётся и почему уходят.",
     name:"Имя", hiredOn:"Нанят", reasons:"Почему ушли или хотят уйти", noHires:"Пока никого не наняли", noHiresHint:"Наймите кандидата на вкладке «Кандидаты», затем отправьте опрос на 7-й и 30-й день.",
     noReasons:"Уходов пока нет.", ok:"Всё хорошо", risk:"Может уйти", leftL:"Ушёл", pending:"—",
@@ -395,7 +395,7 @@ function curV(){
 }
 function candsOf(v){ return state.candidates.filter(function(c){ return v && c.vacancyId === v.id; }); }
 var PILL = { screening:"", matched:"good", mismatch:"bad", invited:"gold", confirmed:"good", came:"good", noshow:"bad", hired:"good", rejected:"", left:"warn" };
-function needsYou(c){ return ["matched","confirmed","came","hired"].indexOf(c.status) >= 0; }
+function needsYou(c){ return ["matched","confirmed","came","hired"].indexOf(c.status) >= 0 || c.atRisk; }
 
 // ---------- render ----------
 function render(){
@@ -502,12 +502,13 @@ function candHTML(c){
   if (inviting && c.status === "mismatch") { main = more; more = ""; }
   if (inviting && c.status === "noshow") { main = more; more = ""; }
   var open = !!ui.open[id];
-  var sub = [I18N[ui.lang].st[c.status] || c.status];
+  var risky = c.status === "hired" && c.atRisk;
+  var sub = [risky ? t("risk") : (I18N[ui.lang].st[c.status] || c.status)];
   if (c.slot && ["invited","confirmed"].indexOf(c.status) >= 0) sub.push(c.slot);
   if (c.rating) sub.push("★ " + c.rating);
   if (c.channel === "whatsapp") sub.push(t("wa"));
   var html = '<div class="cand"><div class="crow"><span class="av" style="background:' + avColor(c.name) + '">' + esc(initials(c.name)) + '</span>' +
-    '<div style="min-width:0"><div class="cname"><span class="sdot ' + (PILL[c.status] || "") + '"></span><span class="n">' + esc(c.name || "…") + '</span></div><div class="csub">' + esc(sub.join(" · ")) + "</div></div>" +
+    '<div style="min-width:0"><div class="cname"><span class="sdot ' + (risky ? "warn" : (PILL[c.status] || "")) + '"></span><span class="n">' + esc(c.name || "…") + '</span></div><div class="csub">' + esc(sub.join(" · ")) + "</div></div>" +
     '<div class="conds">' + conds + "</div>" +
     '<div class="acts">' + main + '<button type="button" class="btn icon ghost" data-act="toggle" data-id="' + id + '" aria-expanded="' + open + '" aria-label="' + t("details") + '">' + ICON.more + "</button></div></div>";
   if (ui.leftFor === id) {

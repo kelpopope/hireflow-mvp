@@ -256,17 +256,20 @@
         c.status = "matched"; c.reconfirmed = false; log(c, "cancelled", "", now); return say(out, c, t.remindNo, now);
       }
       case "checkin": {
-        var ch = parseChoice(text, 3); if (!ch) return say(out, c, t.again, now);
+        var low = String(text).toLowerCase();
+        var ch = /(ушел|ушёл|ушла|уволил|left|quit)/.test(low) ? 3 : /(думаю|thinking)/.test(low) ? 2 : parseChoice(text, 3);
+        if (!ch) return say(out, c, t.again, now);
         var key = "d" + c.checkinDay;
         c.checkins = c.checkins || {};
         if (ch === 1) {
-          c.checkins[key] = { status: "ok", t: now, by: "employee" };
+          c.checkins[key] = { status: "ok", t: now, by: "employee" }; c.atRisk = false;
           c.step = c.rating ? "wait" : "rate";
           say(out, c, t.checkinOk, now);
           if (!c.rating) say(out, c, t.qRate, now);
           return;
         }
         c.checkins[key] = { status: ch === 2 ? "risk" : "left", t: now, by: "employee" };
+        if (ch === 2) { c.atRisk = true; log(c, "risk", "day " + c.checkinDay, now); }
         c.step = "reason"; return say(out, c, t.qReason, now);
       }
       case "reason": {
