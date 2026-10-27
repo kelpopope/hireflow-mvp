@@ -66,19 +66,21 @@ async function postMessage(to, text) {
     headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  return { ok: res.ok, status: res.status, text: res.ok ? "" : await res.text() };
+  return { ok: res.ok, status: res.status, text: await res.text() };
 }
 async function sendWhatsApp(to, text) {
   if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID || !to) return;
   try {
+    let used = to;
     let r = await postMessage(to, text);
     // Meta's test console stores Kazakh/Russian numbers with a trunk "8" (+7 8 7xx...).
     // If the number is "not in allowed list", retry in that stored form.
     if (!r.ok && r.text.indexOf("131030") >= 0 && /^7\d{10}$/.test(to)) {
-      r = await postMessage("78" + to.slice(1), text);
+      used = "78" + to.slice(1);
+      r = await postMessage(used, text);
     }
     if (!r.ok) console.error("WhatsApp send failed", r.status, r.text);
-    else console.log("WhatsApp sent to", to.slice(0, 4) + "…");
+    else console.log("WhatsApp accepted for", used.slice(0, 5) + "…", r.text);
   } catch (e) {
     console.error("WhatsApp send error", e.message);
   }
@@ -134,7 +136,8 @@ app.get("/webhook", (req, res) => {
 // Incoming WhatsApp messages
 app.post("/webhook", async (req, res) => {
   res.sendStatus(200); // answer Meta at once
-  console.log("webhook:", JSON.stringify(req.body).slice(0, 400));
+  const raw = JSON.stringify(req.body);
+  console.log("webhook:", raw.indexOf('"statuses"') >= 0 ? raw.slice(raw.indexOf('"statuses"'), raw.indexOf('"statuses"') + 900) : raw.slice(0, 400));
   try {
     const entries = (req.body && req.body.entry) || [];
     for (const e of entries) {
