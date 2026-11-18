@@ -182,7 +182,7 @@ app.get("/api/state", async (req, res) => {
 });
 
 // Owner actions and the in-page simulator use the same engine as WhatsApp.
-const OWNER_ACTIONS = ["createVacancy", "updateVacancy", "invite", "remind", "mark", "checkin", "ownerCheck", "reset", "deleteCandidate"];
+const OWNER_ACTIONS = ["createVacancy", "updateVacancy", "invite", "remind", "mark", "checkin", "ownerCheck", "reset", "deleteCandidate", "addScenarios"];
 app.post("/api/action", async (req, res, next) => {
   const a = req.body || {};
   if (OWNER_ACTIONS.indexOf(a.type) >= 0) return ownerOnly(req, res, next);

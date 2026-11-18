@@ -534,7 +534,7 @@ var I18N = {
     fbEase:"How easy was it to use? (1 hard, 5 easy)", fbPay:"Would you pay {p} only for a hire who stays 30 days?", fbYes:"Yes", fbMaybe:"Maybe", fbNo:"No",
     fbUseful:"Most useful part", u1:"Instant reply with conditions", u2:"Conditions check before the meeting", u3:"Reminders", u4:"Day 7/30/90 check-ins", u5:"Pay only for a hire who stays",
     fbMissing:"What is missing or confusing?", send:"Send feedback", thanks:"Thank you, feedback saved", fbCount:"Responses", fbAvg:"Average ease", fbPayYes:"Would pay",
-    comment:"Comment on this page", demoReset:"Reset example data", demoEmpty:"Start empty", example:"Example data",
+    comment:"Comment on this page", demoReset:"Reset example data", demoEmpty:"Start empty", scenAdd:"Add interview scenarios R1–R8", scenRefresh:"Rebuild interview scenarios", scenRemove:"Remove scenarios", scenTag:"Interview scenario {r}", scenNote:"Simulated walkthroughs: each café and its problem come from our interviews; candidates and answers are invented.", example:"Example data",
     pStart:"This is the candidate's WhatsApp. Start a new application to see what a candidate sees.", pNew:"Apply as a new candidate", newCand:"+ New candidate",
     underDemo:"Demo: the bot here uses the same logic as the real WhatsApp bot.", underLive:"Real WhatsApp: write {code} to {num}.", joinFirst:"First time only: send {join} to this number.",
     slot:"Fri, 15:00", reasonQ:"Reason", needVacancy:"Create a vacancy first", none:"none", wa:"WhatsApp", sim:"Demo",
@@ -564,7 +564,7 @@ var I18N = {
     fbEase:"Қаншалықты ыңғайлы? (1 қиын, 5 оңай)", fbPay:"30 күн жұмыс істеген қызметкер үшін ғана {p} төлер ме едіңіз?", fbYes:"Иә", fbMaybe:"Мүмкін", fbNo:"Жоқ",
     fbUseful:"Ең пайдалысы", u1:"Шарттармен бірден жауап", u2:"Кездесуге дейін шарттарды тексеру", u3:"Еске салулар", u4:"7/30/90-күнгі сауалнама", u5:"Тек қалған қызметкер үшін төлеу",
     fbMissing:"Не жетіспейді немесе не түсініксіз?", send:"Жіберу", thanks:"Рақмет, пікір сақталды", fbCount:"Жауаптар", fbAvg:"Орташа баға", fbPayYes:"Төлеуге дайын",
-    comment:"Пікір қалдыру", demoReset:"Мысалды қайтару", demoEmpty:"Бос бастау", example:"Мысал",
+    comment:"Пікір қалдыру", demoReset:"Мысалды қайтару", demoEmpty:"Бос бастау", scenAdd:"R1–R8 сұхбат сценарийлерін қосу", scenRefresh:"Сценарийлерді қайта құру", scenRemove:"Сценарийлерді өшіру", scenTag:"Сұхбат сценарийі {r}", scenNote:"Модельдеу: әр кафе мен оның мәселесі сұхбаттарымыздан алынған, кандидаттар мен жауаптар ойдан құрастырылған.", example:"Мысал",
     pStart:"Бұл кандидаттың WhatsApp-ы. Кандидат не көретінін көру үшін өтінім беріп көріңіз.", pNew:"Жаңа кандидат ретінде өтінім беру", newCand:"+ Жаңа кандидат",
     underDemo:"Демо: мұндағы бот нағыз WhatsApp ботымен бірдей жұмыс істейді.", underLive:"Нағыз WhatsApp: {num} нөміріне {code} деп жазыңыз.", joinFirst:"Тек бірінші рет: осы нөмірге {join} жіберіңіз.",
     slot:"Жм, 15:00", reasonQ:"Себебі", needVacancy:"Алдымен вакансия құрыңыз", none:"жоқ", wa:"WhatsApp", sim:"Демо",
@@ -594,7 +594,7 @@ var I18N = {
     fbEase:"Насколько удобно? (1 сложно, 5 легко)", fbPay:"Заплатили бы {p} только за сотрудника, который проработал 30 дней?", fbYes:"Да", fbMaybe:"Возможно", fbNo:"Нет",
     fbUseful:"Самое полезное", u1:"Мгновенный ответ с условиями", u2:"Проверка условий до встречи", u3:"Напоминания", u4:"Опросы на 7/30/90 день", u5:"Оплата только за оставшегося",
     fbMissing:"Чего не хватает или что непонятно?", send:"Отправить", thanks:"Спасибо, отзыв сохранён", fbCount:"Ответов", fbAvg:"Средняя оценка", fbPayYes:"Готовы платить",
-    comment:"Оставить комментарий", demoReset:"Вернуть пример", demoEmpty:"Начать с нуля", example:"Пример",
+    comment:"Оставить комментарий", demoReset:"Вернуть пример", demoEmpty:"Начать с нуля", scenAdd:"Добавить сценарии по интервью R1–R8", scenRefresh:"Пересобрать сценарии", scenRemove:"Убрать сценарии", scenTag:"Сценарий по интервью {r}", scenNote:"Симуляция: каждое кафе и его проблема взяты из наших интервью, кандидаты и ответы придуманы.", example:"Пример",
     pStart:"Это WhatsApp кандидата. Начните отклик, чтобы увидеть, что видит кандидат.", pNew:"Откликнуться как новый кандидат", newCand:"+ Новый кандидат",
     underDemo:"Демо: здесь бот работает по той же логике, что и в настоящем WhatsApp.", underLive:"Настоящий WhatsApp: напишите {code} на {num}.", joinFirst:"Только в первый раз: отправьте {join} на этот номер.",
     slot:"Пт, 15:00", reasonQ:"Причина", needVacancy:"Сначала создайте вакансию", none:"нет", wa:"WhatsApp", sim:"Демо",
@@ -697,7 +697,7 @@ function render(){
 function renderHead(v){
   var h = $("vhead");
   if (!v) { h.innerHTML = "<h1>HireFlow AI</h1>"; return; }
-  h.innerHTML = '<div class="vtitle"><div class="meta">' + esc(v.cafe) + " · " + esc(v.area) + " · " + esc(v.code) + (v.example ? ' · <span class="tag">' + t("example") + "</span>" : "") +
+  h.innerHTML = '<div class="vtitle"><div class="meta">' + esc(v.cafe) + " · " + esc(v.area) + " · " + esc(v.code) + (v.scenario ? ' · <span class="tag">' + fill(t("scenTag"), { r: v.scenario }) + "</span>" : v.example ? ' · <span class="tag">' + t("example") + "</span>" : "") +
     '</div><h1>' + esc(v.role) + '</h1><div class="vchips">' +
     '<span class="vchip grape">' + ICON.days + esc(HF.dayList(v.days, ui.lang)) + '</span>' +
     '<span class="vchip sky">' + ICON.plan + esc(v.hours) + '</span>' +
@@ -779,7 +779,10 @@ function candsHTML(v){
   if (!cs.length) return html + '<div class="empty">' + CUP_EMPTY + '<strong>' + t("noC") + "</strong>" + t("noCHint") + "</div>";
   html += '<div class="cands">' + cs.map(candHTML).join("") + "</div>";
   html += '<div class="legend"><span><span class="cond" style="width:18px;height:18px">' + ICON.days + '</span>' + t("days") + '</span><span><span class="cond" style="width:18px;height:18px">' + ICON.pay + '</span>' + t("pay") + '</span><span><span class="cond" style="width:18px;height:18px">' + ICON.load + '</span>' + t("load") + '</span><span><span class="cond" style="width:18px;height:18px">' + ICON.plan + '</span>' + t("plan") + '</span><span>' + fill_(t("billRule"), HF.money(HF.PRICE)) + '</span></div>';
-  if (!api) html += '<div class="demo"><span>' + t("demo") + '</span><button class="btn ghost" type="button" data-act="seed">' + t("demoReset") + '</button><button class="btn ghost" type="button" data-act="empty">' + t("demoEmpty") + "</button></div>";
+  var hasScen = state.vacancies.some(function(x){ return x.scenario; });
+  html += '<div class="demo">' + (api ? "" : "<span>" + t("demo") + '</span><button class="btn ghost" type="button" data-act="seed">' + t("demoReset") + '</button><button class="btn ghost" type="button" data-act="empty">' + t("demoEmpty") + "</button>") +
+    '<button class="btn ghost" type="button" data-act="scen">' + t(hasScen ? "scenRefresh" : "scenAdd") + "</button>" + (hasScen ? '<button class="btn ghost" type="button" data-act="scenOff">' + t("scenRemove") + "</button>" : "") +
+    '<span class="note">' + t("scenNote") + "</span></div>";
   return html;
 }
 function fill_(s, p){ return fill(s, { p: p }); }
@@ -1020,6 +1023,8 @@ document.addEventListener("click", function(e){
   if (a === "leftAsk") { ui.leftFor = ui.leftFor === id ? null : id; render(); return; }
   if (a === "left") { var r = $("reason-" + id); ui.leftFor = null; act({ type:"ownerCheck", id:id, day:30, stayed:false, reason: +(r && r.value) || 6 }); return; }
   if (a === "seed") { ui.simId = null; ui._simInit = false; act({ type:"reset", seed:true, lang: ui.lang }); return; }
+  if (a === "scen") { ui.simId = null; ui._simInit = false; act({ type:"addScenarios", lang: ui.lang }).then(function(){ var f = state.vacancies.filter(function(x){ return x.scenario; })[0]; if (f) { ui.vacancyId = f.id; render(); } }); return; }
+  if (a === "scenOff") { ui.simId = null; ui._simInit = false; act({ type:"addScenarios", remove:true }); return; }
   if (a === "empty") { ui.simId = null; act({ type:"reset", seed:false }); ui.tab = "vac"; return; }
   if (a === "newV") { ui.vacancyId = "__new"; renderPanelNew(); return; }
   if (a === "simStart") { var v = curV(); if (v) sendSim(({ en:"Hello! ", kk:"Сәлеметсіз бе! ", ru:"Здравствуйте! " }[ui.lang] || "") + v.code); return; }

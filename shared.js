@@ -483,6 +483,14 @@
         if (action.seed) s = seed(now, action.lang);
         break;
       }
+      case "addScenarios": {
+        // Adds the R1–R8 interview scenarios next to existing data; run again to refresh them.
+        var keepV = s.vacancies.filter(function (x) { return !x.scenario; }).map(function (x) { return x.id; });
+        s.vacancies = s.vacancies.filter(function (x) { return keepV.indexOf(x.id) >= 0; });
+        s.candidates = s.candidates.filter(function (x) { return keepV.indexOf(x.vacancyId) >= 0; });
+        if (!action.remove) s = scenarios(s, now, action.lang);
+        break;
+      }
       case "deleteCandidate": {
         s.candidates = s.candidates.filter(function (x) { return x.id !== action.id; });
         break;
@@ -579,6 +587,117 @@
           s = apply(s, { type: "incoming", candidateId: c.id, text: "3", now: tt + 30 * DAY + 300000 }).state;
           s = apply(s, { type: "incoming", candidateId: c.id, text: "1", now: tt + 30 * DAY + 400000 }).state;
         }
+      });
+    });
+    return s;
+  }
+
+  // ---------- scenario walkthroughs built from the eight customer interviews (Assignment 3) ----------
+  // These are simulations, not user tests: each café profile and problem comes from one interview (R1–R8);
+  // the candidates, answers and outcomes are invented to show how that owner would use the bot.
+  var SCEN = [
+    { r: "R1", cafe: { ru: "Кофейня у ЖК (R1)", kk: "ТҮК жанындағы кофехана (R1)", en: "Housing-estate coffee shop (R1)" },
+      role: { ru: "Бариста", kk: "Бариста", en: "Barista" }, area: { ru: "Алматы, жилой комплекс", kk: "Алматы, тұрғын үй кешені", en: "Almaty, housing estate" },
+      days: [1, 2, 3, 4, 5, 6, 7], spw: 3, hours: "07:30–15:30", pay: 8500,
+      work: { ru: "утренний поток жителей, касса и бар", kk: "таңертеңгі тұрғындар ағыны, касса және бар", en: "morning rush of residents, till and bar" },
+      people: [
+        { name: "Айдана", lang: "kk", a: ["1 2 3 6", "1", "1", "3", "Айдана", "бариста, 5 ай"], path: ["invite", "yes", "remindyes", "came", "hired", "d7ok"] },
+        { name: "Ерлан", lang: "ru", a: ["2 4 6", "1", "1", "2", "Ерлан", "официант 1 год"], path: ["invite", "yes"] },
+      ] },
+    { r: "R2", cafe: { ru: "Кофе с собой (R2)", kk: "Алып кететін кофе (R2)", en: "Takeaway coffee point (R2)" },
+      role: { ru: "Бариста-кассир", kk: "Бариста-кассир", en: "Barista-cashier" }, area: { ru: "Алматы, остановка у БЦ", kk: "Алматы, БО жанындағы аялдама", en: "Almaty, bus stop by an office centre" },
+      days: [1, 2, 3, 4, 5], spw: 5, hours: "07:00–14:00", pay: 8000,
+      work: { ru: "один на точке: бар и касса с первого дня", kk: "нүктеде жалғыз: бірінші күннен бар және касса", en: "alone at the point: bar and till from day one" },
+      people: [
+        { name: "Дана", lang: "ru", a: ["1 2 3 4 5", "1", "1", "3", "Дана", "бариста 1 год, касса"], path: ["invite", "yes", "came", "hired", "d7ok", "d30ok"] },
+      ] },
+    { r: "R3", cafe: { ru: "Кофейня у университета (R3)", kk: "Университет жанындағы кофехана (R3)", en: "Coffee shop by a university (R3)" },
+      role: { ru: "Бариста (студент)", kk: "Бариста (студент)", en: "Barista (student)" }, area: { ru: "Алматы, рядом с кампусом", kk: "Алматы, кампус жанында", en: "Almaty, next to the campus" },
+      days: [1, 2, 3, 4, 5, 6], spw: 3, hours: "15:00–22:00", pay: 7500,
+      work: { ru: "вечерние смены, поток студентов после пар", kk: "кешкі ауысым, сабақтан кейін студенттер ағыны", en: "evening shifts, students after classes" },
+      people: [
+        { name: "Әлинұр", lang: "kk", a: ["1 3 5 6", "1", "1", "3", "Әлинұр", "жоқ"], path: ["invite", "yes", "remindyes", "came", "hired", "d7ok"] },
+        { name: "Камила", lang: "ru", a: ["2 4 6", "1", "1", "2", "Камила", "нет"], path: ["invite", "yes", "remindno"] },
+        { name: "Nurbek", lang: "en", a: ["1 2 3", "1", "1", "2", "Nurbek", "none"], path: ["invite", "yes", "noshow"] },
+        { name: "Томирис", lang: "ru", a: ["6 7", "1", "1", "1", "Томирис", "нет"], path: [] },
+      ] },
+    { r: "R4", cafe: { ru: "Кофейня с кухней (R4)", kk: "Асханасы бар кофехана (R4)", en: "Coffee shop with a kitchen (R4)" },
+      role: { ru: "Повар", kk: "Аспаз", en: "Cook" }, area: { ru: "Алматы, центр", kk: "Алматы, орталық", en: "Almaty, centre" },
+      days: [3, 4, 5, 6, 7], spw: 4, hours: "10:00–22:00", pay: 12000,
+      work: { ru: "выходные обязательно, до 150 блюд в субботу", kk: "демалыс күндері міндетті, сенбіде 150 тағамға дейін", en: "weekends required, up to 150 dishes on Saturday" },
+      people: [
+        { name: "Бауыржан", lang: "kk", a: ["3 4 5 6 7", "1", "1", "3", "Бауыржан", "аспаз, 2 жыл"], path: ["invite", "yes", "came", "hired", "d7ok", "d30ok"] },
+        { name: "Сергей", lang: "ru", a: ["3 4 5", "1", "2", "2", "Сергей", "повар 3 года"], path: [] },
+      ] },
+    { r: "R5", cafe: { ru: "Новая кофейня (R5)", kk: "Жаңа кофехана (R5)", en: "New coffee shop (R5)" },
+      role: { ru: "Бариста", kk: "Бариста", en: "Barista" }, area: { ru: "Астана, левый берег", kk: "Астана, сол жағалау", en: "Astana, left bank" },
+      days: [1, 2, 3, 4, 5, 6, 7], spw: 4, hours: "09:00–18:00", pay: 9000,
+      work: { ru: "бар, касса, уборка зала", kk: "бар, касса, залды тазалау", en: "bar, till, cleaning the hall" },
+      people: [
+        { name: "Мадина", lang: "ru", a: ["1 2 4 5 6", "1", "1", "3", "Мадина", "бариста 3 месяца"], path: ["invite", "yes", "came", "hired", "d7risk:1"] },
+      ] },
+    { r: "R6", cafe: { ru: "Сеть из двух кофеен (R6)", kk: "Екі кофехана желісі (R6)", en: "Two coffee shops (R6)" },
+      role: { ru: "Бариста на две точки", kk: "Екі нүктеге бариста", en: "Barista for two locations" }, area: { ru: "Алматы, две точки", kk: "Алматы, екі нүкте", en: "Almaty, two locations" },
+      days: [1, 2, 3, 4, 5, 6, 7], spw: 5, hours: "08:00–20:00", pay: 9500,
+      work: { ru: "смены на двух точках, 5 смен в неделю", kk: "екі нүктеде ауысым, аптасына 5 ауысым", en: "shifts at both locations, 5 a week" },
+      people: [
+        { name: "Арсен", lang: "ru", a: ["1 2 3 4 5", "1", "1", "3", "Арсен", "бариста 1 год"], path: ["invite", "yes", "came", "hired", "d7ok", "d30left:1"] },
+        { name: "Жансая", lang: "kk", a: ["1 2 3 4 5 6", "1", "1", "3", "Жансая", "бариста, 7 ай"], path: ["invite", "yes", "remindyes", "came", "hired"] },
+      ] },
+    { r: "R7", cafe: { ru: "Семейная пекарня (R7)", kk: "Отбасылық наубайхана (R7)", en: "Family bakery café (R7)" },
+      role: { ru: "Продавец-кассир", kk: "Сатушы-кассир", en: "Sales assistant" }, area: { ru: "Алматы, микрорайон", kk: "Алматы, шағын аудан", en: "Almaty, residential district" },
+      days: [6, 7], spw: 2, hours: "08:00–14:00", pay: 7000,
+      work: { ru: "только выходные утром", kk: "тек демалыс күндері таңертең", en: "weekend mornings only" },
+      people: [
+        { name: "Гүлназ", lang: "kk", a: ["1 2 3", "1", "1", "3", "Гүлназ", "сатушы, 1 жыл"], path: [] },
+        { name: "Ольга", lang: "ru", a: ["6 7", "1", "1", "3", "Ольга", "продавец 2 года"], path: ["invite", "yes", "came", "hired"] },
+      ] },
+    { r: "R8", cafe: { ru: "Кафе с заготовками, Астана (R8)", kk: "Жартылай фабрикаты бар кафе, Астана (R8)", en: "Café with its own kitchen, Astana (R8)" },
+      role: { ru: "Администратор", kk: "Әкімші", en: "Administrator" }, area: { ru: "Астана, правый берег", kk: "Астана, оң жағалау", en: "Astana, right bank" },
+      days: [1, 2, 3, 4, 5, 6], spw: 5, hours: "09:00–19:00", pay: 10000,
+      work: { ru: "зал, касса, приём заказов, без работы на кухне", kk: "зал, касса, тапсырыс қабылдау, асханада жұмыссыз", en: "hall, till, orders, no kitchen work" },
+      people: [
+        { name: "Әсел", lang: "kk", a: ["1 2 3 4 5", "1", "1", "3", "Әсел", "әкімші, 1 жыл"], path: ["invite", "yes", "came", "hired", "d7ok", "d30ok", "d90left:3"] },
+      ] },
+  ];
+  function scenarios(state, now, lang) {
+    var DAY = 86400000, L = LANGS.indexOf(lang) >= 0 ? lang : "ru", s = state;
+    var slot = { ru: "Пт, 15:00", kk: "Жм, 15:00", en: "Fri, 15:00" }[L];
+    SCEN.forEach(function (sc, si) {
+      var base = now - (160 - si * 4) * DAY;
+      s = apply(s, { type: "createVacancy", now: base, data: {
+        cafe: sc.cafe[L], role: sc.role[L], area: sc.area[L], days: sc.days, shiftsPerWeek: sc.spw, hours: sc.hours,
+        pay: sc.pay, workload: sc.work[L], start: { ru: "сразу", kk: "бірден", en: "now" }[L], lang: L, example: true } }).state;
+      var v = s.vacancies[s.vacancies.length - 1];
+      v.scenario = sc.r; v.free = false;
+      sc.people.forEach(function (p, i) {
+        var t0 = base + (i + 1) * 5 * 3600000;
+        s = apply(s, { type: "incoming", channel: "sim", phone: "", text: v.code, vacancyId: v.id, now: t0, example: true }).state;
+        var c = s.candidates[s.candidates.length - 1];
+        var langNum = { kk: "1", ru: "2", en: "3" }[p.lang];
+        [langNum].concat(p.a).forEach(function (txt, k) {
+          s = apply(s, { type: "incoming", candidateId: c.id, text: txt, now: t0 + (k + 1) * 45000 }).state;
+        });
+        var tt = t0 + DAY;
+        p.path.forEach(function (step) {
+          tt += DAY / 2;
+          var said = function (txt, at) { s = apply(s, { type: "incoming", candidateId: c.id, text: txt, now: at }).state; };
+          if (step === "invite") s = apply(s, { type: "invite", id: c.id, slot: slot, now: tt }).state;
+          if (step === "yes") said("1", tt + 600000);
+          if (step === "remindyes" || step === "remindno") {
+            s = apply(s, { type: "remind", id: c.id, now: tt }).state;
+            said(step === "remindyes" ? "1" : "2", tt + 900000);
+          }
+          if (step === "came" || step === "noshow" || step === "hired") s = apply(s, { type: "mark", id: c.id, status: step, now: tt }).state;
+          var m = /^d(7|30|90)(ok|risk|left)(?::(\d))?$/.exec(step);
+          if (m) {
+            var d = +m[1], at = tt + d * DAY;
+            s = apply(s, { type: "checkin", id: c.id, day: d, now: at }).state;
+            said(m[2] === "ok" ? "1" : m[2] === "risk" ? "2" : "3", at + 1800000);
+            if (m[3]) said(m[3], at + 1900000);
+            var cc = findC(s, c.id); if (cc && cc.step === "rate") said(String(4 + (i % 2)), at + 2000000);
+          }
+        });
       });
     });
     return s;
