@@ -1,6 +1,6 @@
 /* HireFlow AI MVP server.
  * - Serves the web service (public/index.html) for café owners.
- * - Receives WhatsApp messages from the Meta Cloud API webhook and answers through the shared bot engine.
+ * - Receives WhatsApp messages from Twilio (/twilio) or the Meta Cloud API webhook (/webhook) and answers through the shared bot engine.
  * - Stores everything in Postgres when DATABASE_URL is set, otherwise in data.json (lost on redeploy).
  */
 "use strict";
@@ -15,6 +15,13 @@ const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID || "";
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "hireflow-verify";
 const ADMIN_KEY = process.env.ADMIN_KEY || ""; // optional: protects owner actions
 const GRAPH = "https://graph.facebook.com/v21.0";
+// Twilio WhatsApp (sandbox or approved sender): an alternative to the Meta Cloud API.
+const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID || "";
+const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN || "";
+const TWILIO_FROM = process.env.TWILIO_WHATSAPP_FROM || "whatsapp:+14155238886";
+const TWILIO_ON = !!(TWILIO_SID && TWILIO_TOKEN);
+const META_ON = !!(WHATSAPP_TOKEN && PHONE_NUMBER_ID);
+const crypto = require("crypto");
 
 // ---------- storage ----------
 let pool = null;
@@ -68,8 +75,24 @@ async function postMessage(to, text) {
   });
   return { ok: res.ok, status: res.status, text: await res.text() };
 }
+async function sendTwilio(to, text) {
+  const form = new URLSearchParams({ From: TWILIO_FROM, To: "whatsapp:+" + String(to).replace(/\D/g, ""), Body: text.slice(0, 1600) });
+  try {
+    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
+      method: "POST",
+      headers: { Authorization: "Basic " + Buffer.from(TWILIO_SID + ":" + TWILIO_TOKEN).toString("base64"), "Content-Type": "application/x-www-form-urlencoded" },
+      body: form.toString(),
+    });
+    const body = await res.text();
+    if (!res.ok) console.error("Twilio send failed", res.status, body.slice(0, 300));
+    else console.log("Twilio accepted for", String(to).slice(0, 5) + "…");
+  } catch (e) {
+    console.error("Twilio send error", e.message);
+  }
+}
 async function sendWhatsApp(to, text) {
-  if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID || !to) return;
+  if (TWILIO_ON && to) return sendTwilio(to, text);
+  if (!META_ON || !to) return;
   try {
     let used = to;
     let r = await postMessage(to, text);
@@ -94,6 +117,7 @@ async function deliver(outbound) {
 // ---------- app ----------
 const app = express();
 app.use(express.json({ limit: "1mb" }));
+app.use("/twilio", express.urlencoded({ extended: false }));
 
 function ownerOnly(req, res, next) {
   if (!ADMIN_KEY || req.get("x-admin-key") === ADMIN_KEY) return next();
@@ -102,7 +126,7 @@ function ownerOnly(req, res, next) {
 
 app.get("/api/state", async (req, res) => {
   const s = await load();
-  res.json({ state: s, live: !!(WHATSAPP_TOKEN && PHONE_NUMBER_ID), waNumber: process.env.WHATSAPP_DISPLAY_NUMBER || "", needsKey: !!ADMIN_KEY });
+  res.json({ state: s, live: TWILIO_ON || META_ON, waNumber: process.env.WHATSAPP_DISPLAY_NUMBER || (TWILIO_ON ? TWILIO_FROM.replace("whatsapp:", "") : ""), waJoin: process.env.TWILIO_JOIN_WORDS || "", needsKey: !!ADMIN_KEY });
 });
 
 // Owner actions and the in-page simulator use the same engine as WhatsApp.
@@ -160,11 +184,35 @@ app.post("/webhook", async (req, res) => {
   }
 });
 
+// Incoming WhatsApp messages through Twilio. The request is checked with Twilio's signature.
+function twilioSignatureOk(req) {
+  const sig = req.get("x-twilio-signature") || "";
+  const url = (process.env.PUBLIC_URL || ("https://" + req.get("host"))) + req.originalUrl;
+  const params = req.body || {};
+  const data = Object.keys(params).sort().reduce((acc, k) => acc + k + params[k], url);
+  const expected = crypto.createHmac("sha1", TWILIO_TOKEN).update(Buffer.from(data, "utf-8")).digest("base64");
+  return sig.length === expected.length && crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+}
+app.post("/twilio", async (req, res) => {
+  if (!TWILIO_ON) return res.sendStatus(404);
+  if (!twilioSignatureOk(req)) { console.error("Twilio signature mismatch"); return res.sendStatus(403); }
+  res.type("text/xml").send("<Response></Response>"); // replies go out through the API
+  const b = req.body || {};
+  const phone = String(b.From || "").replace(/\D/g, "");
+  const text = b.Body || (Number(b.NumMedia) > 0 ? "?" : "");
+  if (!phone) return;
+  try {
+    await run({ type: "incoming", channel: "whatsapp", phone, profileName: b.ProfileName || "", text, now: Date.now() });
+  } catch (e) {
+    console.error("twilio webhook error", e);
+  }
+});
+
 app.get("/shared.js", (req, res) => res.sendFile(path.join(__dirname, "shared.js")));
 app.use(express.static(path.join(__dirname, "public")));
 app.get("/healthz", (req, res) => res.send("ok"));
 app.get("/privacy", (req, res) => res.sendFile(path.join(__dirname, "public", "privacy.html")));
 
 initStore().then(() => {
-  app.listen(PORT, () => console.log("HireFlow MVP on port " + PORT + (WHATSAPP_TOKEN ? " (WhatsApp on)" : " (WhatsApp off)")));
+  app.listen(PORT, () => console.log("HireFlow MVP on port " + PORT + (TWILIO_ON ? " (WhatsApp via Twilio)" : META_ON ? " (WhatsApp via Meta)" : " (WhatsApp off)")));
 });

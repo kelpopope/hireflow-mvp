@@ -42,7 +42,18 @@ Environment variables:
 | `DATABASE_URL` | Optional Postgres URL; without it data is kept in `data.json` and is lost on redeploy |
 | `ADMIN_KEY` | Optional key that owner actions must send in the `x-admin-key` header |
 
-## Connect WhatsApp
+## Connect WhatsApp through Twilio (recommended for the pilot)
+
+Meta restricts new, unverified business accounts. Twilio's WhatsApp sandbox works without business verification.
+
+1. Sign up at twilio.com, open Messaging → Try it out → Send a WhatsApp message, and note the sandbox number and join words (for example `join silver-tiger`).
+2. Sandbox settings → "When a message comes in": `https://<your-service>.onrender.com/twilio`, method POST.
+3. Render → Environment: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_JOIN_WORDS` (the join words). `TWILIO_WHATSAPP_FROM` defaults to the sandbox number `whatsapp:+14155238886`.
+4. Each tester sends the join words once, then the vacancy code (for example `HF-101`).
+
+Incoming requests are checked with Twilio's signature. When Twilio is set, it is used instead of Meta.
+
+## Connect WhatsApp through Meta
 
 Meta for Developers → app → WhatsApp → Configuration → Webhook → Edit:
 
