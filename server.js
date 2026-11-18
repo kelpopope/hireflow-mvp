@@ -128,20 +128,21 @@ function tgHtml(text) {
   const esc = String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   return esc.replace(/\*([^*\n]+)\*/g, "<b>$1</b>").replace(/(^|\s)_([^_\n]+)_(?=\s|$)/g, "$1<i>$2</i>").replace(/WhatsApp/g, "Telegram");
 }
-async function sendTelegram(chatId, text) {
+async function sendTelegram(chatId, text, buttons) {
   try {
     const res = await fetch(`${TG_API}/bot${TG_TOKEN}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text: tgHtml(text).slice(0, 4000), parse_mode: "HTML", disable_web_page_preview: true }),
+      body: JSON.stringify({ chat_id: chatId, text: tgHtml(text).slice(0, 4000), parse_mode: "HTML", disable_web_page_preview: true,
+        reply_markup: buttons && buttons.length ? { keyboard: buttons.map((row) => row.map((b) => ({ text: b }))), resize_keyboard: true, one_time_keyboard: true } : { remove_keyboard: true } }),
     });
     if (!res.ok) console.error("Telegram send failed", res.status, (await res.text()).slice(0, 200));
   } catch (e) {
     console.error("Telegram send error", e.message);
   }
 }
-async function sendWhatsApp(to, text) {
-  if (to && String(to).indexOf("tg:") === 0) return TG_ON ? sendTelegram(String(to).slice(3), text) : undefined;
+async function sendWhatsApp(to, text, buttons) {
+  if (to && String(to).indexOf("tg:") === 0) return TG_ON ? sendTelegram(String(to).slice(3), text, buttons) : undefined;
   if (TWILIO_ON && to) return sendTwilio(to, text);
   if (!META_ON || !to) return;
   try {
@@ -161,7 +162,7 @@ async function sendWhatsApp(to, text) {
 }
 async function deliver(outbound) {
   for (const m of outbound) {
-    if (m.channel === "whatsapp") await sendWhatsApp(m.phone, m.text);
+    if (m.channel === "whatsapp") await sendWhatsApp(m.phone, m.text, m.buttons);
   }
 }
 

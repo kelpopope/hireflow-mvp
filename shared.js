@@ -10,15 +10,30 @@
   var DAY_NAMES = {
     ru: ["", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
     en: ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    kk: ["", "Дс", "Сс", "Ср", "Бс", "Жм", "Сн", "Жс"],
   };
   var REASONS = {
     ru: ["", "График или учёба", "Оплата", "Нагрузка", "Коллектив или руководитель", "Нашёл другую работу", "Другое"],
     en: ["", "Schedule or studies", "Pay", "Workload", "Team or manager", "Found another job", "Other"],
+    kk: ["", "Кесте немесе оқу", "Төлем", "Жүктеме", "Ұжым немесе басшы", "Басқа жұмыс тапты", "Басқа"],
   };
   var HORIZON = {
     ru: ["", "меньше месяца", "1–3 месяца", "больше 3 месяцев"],
     en: ["", "less than a month", "1–3 months", "more than 3 months"],
+    kk: ["", "бір айдан аз", "1–3 ай", "3 айдан көп"],
   };
+  var LANGS = ["kk", "ru", "en"];
+  function langOf(c, v) { var l = (c && c.lang) || (v && v.lang); return LANGS.indexOf(l) >= 0 ? l : "ru"; }
+  // First question for every new candidate, in all three languages.
+  var ASK_LANG = "Тілді таңдаңыз / Выберите язык / Choose your language:\n1 Қазақша\n2 Русский\n3 English";
+  var LANG_BUTTONS = [["1 Қазақша", "2 Русский", "3 English"]];
+  function parseLang(text) {
+    var t = String(text || "").trim().toLowerCase();
+    if (/^(1|қаз|каз|kaz|kk|kz)/.test(t)) return "kk";
+    if (/^(2|рус|ru)/.test(t)) return "ru";
+    if (/^(3|eng|англ|en)/.test(t)) return "en";
+    return null;
+  }
 
   function uid(p) {
     return (p || "") + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
@@ -34,6 +49,7 @@
     [1, /(^|[^а-яa-z])(пн|понед|mon)/i], [2, /(^|[^а-яa-z])(вт|втор|tue)/i], [3, /(^|[^а-яa-z])(ср|сред|wed)/i],
     [4, /(^|[^а-яa-z])(чт|четв|thu)/i], [5, /(^|[^а-яa-z])(пт|пятн|fri)/i], [6, /(^|[^а-яa-z])(сб|субб|sat)/i],
     [7, /(^|[^а-яa-z])(вс|воскр|sun)/i],
+    [1, /(дс|дүйс)/i], [2, /(сс|сейс)/i], [3, /сәрс/i], [4, /(бс|бейс)/i], [5, /(жм|жұма)/i], [6, /(сн|сенбі)/i], [7, /(жс|жекс)/i],
   ];
   function parseDays(text) {
     var t = String(text || "").toLowerCase();
@@ -44,13 +60,14 @@
     }
     (t.match(/[1-7]/g) || []).forEach(function (d) { set[+d] = 1; });
     WORD_DAYS.forEach(function (w) { if (w[1].test(t)) set[w[0]] = 1; });
-    if (/(любые|все дни|any|every day|all days)/.test(t)) for (var k = 1; k <= 7; k++) set[k] = 1;
+    if (/(любые|все дни|any|every day|all days|барлық күн|кез келген)/.test(t)) for (var k = 1; k <= 7; k++) set[k] = 1;
     return Object.keys(set).map(Number).sort();
   }
   function parseYesNo(text) {
     var t = String(text || "").trim().toLowerCase();
     if (/^(1|да|ага|подходит|ок|ok|yes|y|иә|ия)\b/.test(t)) return true;
-    if (/^(2|нет|не подходит|no|n|жоқ)\b/.test(t)) return false;
+    if (/^(2|нет|не подходит|no|n|жоқ|сай емес)/.test(t)) return false;
+    if (/^(иә|ия|сай|да|ага|подходит|ок)/.test(t)) return true;
     return null;
   }
   function parseChoice(text, max) {
@@ -156,6 +173,53 @@
       closed: "Thank you! The owner already has your answers. We will write when there is news.",
       noVacancy: "Hello! There are no open vacancies right now. We will write when one opens.",
     },
+    kk: {
+      welcome: function (v) {
+        return "Сәлеметсіз бе! Бұл HireFlow, «" + v.cafe + "» кафесінің көмекшісі. Вакансияға қызығушылық танытқаныңызға рақмет.\n\n" +
+          "*" + v.role + "*, " + v.area + "\n" +
+          "• Ауысымдар: " + dayList(v.days, "kk") + ", " + v.hours + " (аптасына ауысым: " + v.shiftsPerWeek + ")\n" +
+          "• Төлем: бір ауысымға " + money(v.pay) + "\n" +
+          "• Жүктеме: " + v.workload + "\n" +
+          "• Басталуы: " + v.start + "\n\n" +
+          "6 қысқа сұраққа жауап беріңіз, бұл 2 минут алады.";
+      },
+      qDays: "1/6. Қай күндері жұмыс істей аласыз? Сандарды бос орын арқылы жазыңыз: 1 Дс, 2 Сс, 3 Ср, 4 Бс, 5 Жм, 6 Сн, 7 Жс. Мысалы: 1 3 5 6",
+      qPay: function (v) { return "2/6. Бір ауысымға төлем " + money(v.pay) + ". Сізге сай ма? 1 Иә, 2 Жоқ"; },
+      qWork: function (v) { return "3/6. Жүктеме: " + v.workload + ". Сізге сай ма? 1 Иә, 2 Жоқ"; },
+      qHorizon: "4/6. Бізде қанша уақыт жұмыс істеуді жоспарлайсыз? 1 Бір айдан аз, 2 1 айдан 3 айға дейін, 3 3 айдан көп",
+      qName: "5/6. Атыңыз кім?",
+      qExp: "6/6. Жұмыс тәжірибеңізді бір жолмен жазыңыз (немесе «жоқ» деп жазыңыз):",
+      again: "Жауапты түсінбедім. Нұсқалардың бірін санмен жазыңыз.",
+      againDays: "Жауаптан күндерді таба алмадым. Күндердің сандарын жазыңыз, мысалы: 2 4 6",
+      matched: function (c) {
+        return "Рақмет, " + c.name + "! Жауаптарыңыз шарттарға сай. Кафе иесі сауалнаманы қарап, бір күн ішінде кездесу уақытын ұсынады. Біз осында жазамыз.";
+      },
+      mismatch: function (c, why) {
+        return "Рақмет, " + (c.name || "") + "! Шынын айтсақ, бұл вакансия сізге толық сай емес (" + why + "). Сауалнаманы сақтаймыз және басқа шарттары бар вакансия шықса, жазамыз.";
+      },
+      whyDays: function (n) { return "көрсетілген күндері аптасына " + n + " ауысым қажет"; },
+      whyPay: "төлем", whyWork: "жүктеме", whyHorizon: "кемінде бір ай жұмыс істеу керек",
+      invite: function (v, c) {
+        return "Жақсы жаңалық, " + c.name + "! «" + v.cafe + "» кафесінің иесі сізді кездесуге шақырады: *" + c.slot + "*, " + v.area + ".\n\nКелесіз бе? 1 Иә, 2 Басқа уақыт керек";
+      },
+      confirmed: "Тамаша, жазып қойдық! Алдыңғы күні еске саламыз.",
+      reschedule: "Жақсы, иесіне жеткіздік. Ол басқа уақыт ұсынады.",
+      remind: function (v, c) {
+        return "Еске салу: «" + v.cafe + "» кафесінде кездесу *" + c.slot + "*, " + v.area + ".\nКелетін болсаңыз 1, келе алмасаңыз 2 деп жауап беріңіз.";
+      },
+      remindYes: "Рақмет, сізді күтеміз!",
+      remindNo: "Ескерткеніңізге рақмет. Иесіне жеткіздік.",
+      hired: function (v, c) { return "Құттықтаймыз, " + c.name + "! Сізді «" + v.cafe + "» кафесіне жұмысқа алды. 7, 30 және 90 күннен кейін жағдайыңызды қысқаша сұраймыз."; },
+      checkin: function (v, c, d) { return "Сәлеметсіз бе, " + c.name + "! «" + v.cafe + "» кафесінде жұмыс істегеніңізге " + d + " күн болды. Жағдай қалай? 1 Бәрі жақсы, 2 Кетуді ойлап жүрмін, 3 Кеттім"; },
+      checkinOk: "Естігенімізге қуаныштымыз! Жұмысыңыз сәтті болсын.",
+      qReason: "Себебін айтыңызшы, бұл кафеге көмектеседі: 1 Кесте немесе оқу, 2 Төлем, 3 Жүктеме, 4 Ұжым немесе басшы, 5 Басқа жұмыс таптым, 6 Басқа",
+      reasonThanks: "Шынайы жауабыңызға рақмет. Мұны иесіне артық мәліметсіз жеткіземіз.",
+      qRate: "Соңғы сұрақ: WhatsApp арқылы осылай өтінім беру қаншалықты ыңғайлы болды? 1-ден 5-ке дейін бағалаңыз.",
+      rateThanks: "Рақмет!",
+      rejected: function (v) { return "«" + v.cafe + "» кафесіне келгеніңізге рақмет. Өкінішке қарай, бұл жолы иесі басқа кандидатты таңдады. Сауалнамаңызды сақтаймыз."; },
+      closed: "Рақмет! Сауалнамаңыз кафе иесінде. Жаңалық болғанда жазамыз.",
+      noVacancy: "Сәлеметсіз бе! Қазір ашық вакансиялар жоқ. Пайда болғанда жазамыз.",
+    },
   };
 
   // ---------- matching ----------
@@ -180,13 +244,30 @@
   function findC(s, id) { return s.candidates.filter(function (c) { return c.id === id; })[0]; }
   function log(c, type, text, now) { (c.events = c.events || []).push({ t: now, type: type, text: text || "" }); }
 
-  function say(out, c, text, now) {
+  function say(out, c, text, now, buttons) {
     (c.messages = c.messages || []).push({ from: "bot", text: text, t: now });
     if (c.firstReplyMs == null && c.messages.length) {
       var firstIn = c.messages.filter(function (m) { return m.from === "cand"; })[0];
       if (firstIn) c.firstReplyMs = Math.max(0, now - firstIn.t);
     }
-    out.push({ candidateId: c.id, channel: c.channel, phone: c.phone, text: text });
+    out.push({ candidateId: c.id, channel: c.channel, phone: c.phone, text: text, buttons: buttons || buttonsFor(c) });
+  }
+  // Reply buttons for messengers that support them (Telegram); WhatsApp text still lists the numbers.
+  function buttonsFor(c) {
+    var L = langOf(c), B = {
+      kk: { y: ["1 Иә", "2 Жоқ"], hz: ["1 < 1 ай", "2 1–3 ай", "3 > 3 ай"], ck: ["1 Бәрі жақсы", "2 Кетуді ойлап жүрмін", "3 Кеттім"] },
+      ru: { y: ["1 Да", "2 Нет"], hz: ["1 < месяца", "2 1–3 мес.", "3 > 3 мес."], ck: ["1 Всё хорошо", "2 Думаю уйти", "3 Ушёл(ла)"] },
+      en: { y: ["1 Yes", "2 No"], hz: ["1 < month", "2 1–3 months", "3 3+ months"], ck: ["1 All good", "2 Thinking of leaving", "3 I left"] },
+    }[L];
+    switch (c.step) {
+      case "lang": return LANG_BUTTONS;
+      case "pay": case "workload": case "invite": case "remind": return [B.y];
+      case "horizon": return [B.hz];
+      case "checkin": return [B.ck];
+      case "reason": return [["1", "2", "3"], ["4", "5", "6"]];
+      case "rate": return [["1", "2", "3", "4", "5"]];
+    }
+    return null;
   }
 
   function vacancyFromText(s, text) {
@@ -207,8 +288,15 @@
 
   // ---------- conversation ----------
   function handleText(s, v, c, text, now, out) {
-    var L = v.lang === "en" ? "en" : "ru", t = T[L], a = c.answers = c.answers || {};
+    var L = langOf(c, v), t = T[L], a = c.answers = c.answers || {};
     switch (c.step) {
+      case "lang": {
+        var lg = parseLang(text);
+        if (!lg) return say(out, c, ASK_LANG, now);
+        c.lang = lg; c.step = "days";
+        say(out, c, T[lg].welcome(v), now);
+        return say(out, c, T[lg].qDays, now);
+      }
       case "days": {
         var d = parseDays(text);
         if (!d.length) return say(out, c, t.againDays, now);
@@ -257,7 +345,7 @@
       }
       case "checkin": {
         var low = String(text).toLowerCase();
-        var ch = /(ушел|ушёл|ушла|уволил|left|quit)/.test(low) ? 3 : /(думаю|thinking)/.test(low) ? 2 : parseChoice(text, 3);
+        var ch = /(ушел|ушёл|ушла|уволил|left|quit|кеттім|кетіп қалдым)/.test(low) ? 3 : /(думаю|thinking|ойлап)/.test(low) ? 2 : parseChoice(text, 3);
         if (!ch) return say(out, c, t.again, now);
         var key = "d" + c.checkinDay;
         c.checkins = c.checkins || {};
@@ -301,7 +389,7 @@
         v = {
           id: uid("v_"), code: nextCode(s), cafe: d.cafe || "Café", role: d.role || "Barista", area: d.area || "",
           days: (d.days || []).map(Number).sort(), shiftsPerWeek: +d.shiftsPerWeek || 3, hours: d.hours || "",
-          pay: +d.pay || 0, workload: d.workload || "", start: d.start || "", lang: d.lang === "en" ? "en" : "ru",
+          pay: +d.pay || 0, workload: d.workload || "", start: d.start || "", lang: LANGS.indexOf(d.lang) >= 0 ? d.lang : "ru",
           active: true, free: s.vacancies.length === 0, createdAt: now, example: !!d.example,
         };
         s.vacancies.push(v); s.lastCreated = v.id;
@@ -326,7 +414,7 @@
         if (!c) {
           v = action.vacancyId ? findV(s, action.vacancyId) : vacancyFromText(s, action.text);
           if (!v) {
-            out.push({ candidateId: null, channel: action.channel, phone: action.phone, text: T.ru.noVacancy });
+            out.push({ candidateId: null, channel: action.channel, phone: action.phone, text: T.kk.noVacancy + "\n\n" + T.ru.noVacancy + "\n\n" + T.en.noVacancy });
             break;
           }
           c = {
@@ -337,9 +425,15 @@
           s.candidates.push(c);
           c.messages.push({ from: "cand", text: action.text, t: now });
           log(c, "applied", "", now);
-          L = v.lang === "en" ? "en" : "ru";
-          say(out, c, T[L].welcome(v), now);
-          say(out, c, T[L].qDays, now);
+          // Example data and in-page tests can fix the language; real candidates choose it first.
+          if (action.lang && LANGS.indexOf(action.lang) >= 0) {
+            c.lang = action.lang;
+            say(out, c, T[c.lang].welcome(v), now);
+            say(out, c, T[c.lang].qDays, now);
+          } else {
+            c.step = "lang";
+            say(out, c, ASK_LANG, now);
+          }
           break;
         }
         v = findV(s, c.vacancyId);
@@ -349,26 +443,26 @@
         break;
       }
       case "invite": {
-        c = findC(s, action.id); if (!c) break; v = findV(s, c.vacancyId); t = T[v.lang === "en" ? "en" : "ru"];
+        c = findC(s, action.id); if (!c) break; v = findV(s, c.vacancyId); t = T[langOf(c, v)];
         c.slot = action.slot; c.status = "invited"; c.step = "invite"; log(c, "invited", c.slot, now);
         say(out, c, t.invite(v, c), now);
         break;
       }
       case "remind": {
-        c = findC(s, action.id); if (!c) break; v = findV(s, c.vacancyId); t = T[v.lang === "en" ? "en" : "ru"];
+        c = findC(s, action.id); if (!c) break; v = findV(s, c.vacancyId); t = T[langOf(c, v)];
         c.step = "remind"; c.reminded = true; log(c, "reminded", "", now);
         say(out, c, t.remind(v, c), now);
         break;
       }
       case "mark": {
-        c = findC(s, action.id); if (!c) break; v = findV(s, c.vacancyId); t = T[v.lang === "en" ? "en" : "ru"];
+        c = findC(s, action.id); if (!c) break; v = findV(s, c.vacancyId); t = T[langOf(c, v)];
         c.status = action.status; log(c, action.status, "", now);
         if (action.status === "hired") { c.hiredAt = now; say(out, c, t.hired(v, c), now); }
         if (action.status === "rejected") say(out, c, t.rejected(v), now);
         break;
       }
       case "checkin": {
-        c = findC(s, action.id); if (!c) break; v = findV(s, c.vacancyId); t = T[v.lang === "en" ? "en" : "ru"];
+        c = findC(s, action.id); if (!c) break; v = findV(s, c.vacancyId); t = T[langOf(c, v)];
         c.checkinDay = action.day; c.step = "checkin"; log(c, "checkin_sent", "day " + action.day, now);
         say(out, c, t.checkin(v, c, action.day), now);
         break;
@@ -437,17 +531,20 @@
 
   // ---------- example data (marked as examples) ----------
   function seed(now, lang) {
-    var DAY = 86400000, base = now - 40 * DAY, en = lang === "en";
+    var DAY = 86400000, base = now - 40 * DAY, en = lang === "en", kk = lang === "kk";
     var r = apply(emptyState(), { type: "createVacancy", now: base, data: en ? {
       cafe: "Example Coffee", role: "Barista", area: "Almaty, Samal-2", days: [1, 2, 3, 4, 5, 6, 7],
       shiftsPerWeek: 4, hours: "08:00–16:00", pay: 9000, workload: "up to 120 cups a shift, morning student rush",
-      start: "from 1 November", lang: "en", example: true } : {
+      start: "from 1 November", lang: "en", example: true } : kk ? {
+      cafe: "Example Coffee", role: "Бариста", area: "Алматы, Самал-2 ш/а", days: [1, 2, 3, 4, 5, 6, 7],
+      shiftsPerWeek: 4, hours: "08:00–16:00", pay: 9000, workload: "ауысымына 120 шыныаяққа дейін, таңертең студенттер көп",
+      start: "1 қарашадан", lang: "kk", example: true } : {
       cafe: "Example Coffee", role: "Бариста", area: "Алматы, мкр. Самал-2", days: [1, 2, 3, 4, 5, 6, 7],
       shiftsPerWeek: 4, hours: "08:00–16:00", pay: 9000, workload: "до 120 чашек за смену, утренний поток студентов",
       start: "с 1 ноября", lang: "ru", example: true } });
     var s = r.state, v = s.vacancies[0];
     var people = [
-      { name: en ? "Aigerim" : "Айгерим", days: "1 2 4 6 7", pay: "1", work: "1", hz: "3", exp: en ? "barista, 8 months" : "бариста 8 месяцев", path: ["invite", "yes", "came", "hired", "d7ok", "d30ok"] },
+      { name: en ? "Aigerim" : "Айгерим", days: "1 2 4 6 7", pay: "1", work: "1", hz: "3", exp: en ? "barista, 8 months" : kk ? "бариста, 8 ай" : "бариста 8 месяцев", path: ["invite", "yes", "came", "hired", "d7ok", "d30ok"] },
       { name: en ? "Daniyar" : "Данияр", days: "3 4 5 6", pay: "1", work: "1", hz: "2", exp: en ? "waiter, 1 year" : "официант 1 год", path: ["invite", "yes", "remindyes", "came", "hired", "d7ok", "d30left"] },
       { name: en ? "Madina" : "Мадина", days: "1 3 5 6", pay: "1", work: "1", hz: "3", exp: en ? "none" : "нет", path: ["invite", "yes", "noshow"] },
       { name: en ? "Arman" : "Арман", days: "6 7", pay: "1", work: "1", hz: "2", exp: en ? "cashier, 3 months" : "кассир 3 месяца", path: [] },
@@ -456,7 +553,7 @@
     ];
     people.forEach(function (p, i) {
       var t0 = base + (i + 1) * 3600000;
-      s = apply(s, { type: "incoming", channel: "sim", phone: "", text: (en ? "Hello! " : "Здравствуйте! ") + v.code, vacancyId: v.id, now: t0, example: true }).state;
+      s = apply(s, { type: "incoming", channel: "sim", phone: "", text: (en ? "Hello! " : kk ? "Сәлеметсіз бе! " : "Здравствуйте! ") + v.code, vacancyId: v.id, now: t0, example: true, lang: v.lang }).state;
       var c = s.candidates[s.candidates.length - 1];
       [p.days, p.pay, p.work, p.hz, p.name, p.exp].forEach(function (txt, k) {
         s = apply(s, { type: "incoming", candidateId: c.id, text: txt, now: t0 + (k + 1) * 40000 }).state;
@@ -464,7 +561,7 @@
       var tt = t0 + 2 * DAY;
       p.path.forEach(function (step) {
         tt += DAY / 2;
-        if (step === "invite") s = apply(s, { type: "invite", id: c.id, slot: en ? "Fri, 15:00" : "Пт, 15:00", now: tt }).state;
+        if (step === "invite") s = apply(s, { type: "invite", id: c.id, slot: en ? "Fri, 15:00" : kk ? "Жм, 15:00" : "Пт, 15:00", now: tt }).state;
         if (step === "yes") s = apply(s, { type: "incoming", candidateId: c.id, text: "1", now: tt + 60000 }).state;
         if (step === "remindyes") {
           s = apply(s, { type: "remind", id: c.id, now: tt }).state;
@@ -489,7 +586,7 @@
 
   var HF = {
     PRICE: PRICE, DAY_NAMES: DAY_NAMES, REASONS: REASONS, HORIZON: HORIZON,
-    apply: apply, metrics: metrics, evaluate: evaluate, emptyState: emptyState, seed: seed,
+    LANGS: LANGS, apply: apply, metrics: metrics, evaluate: evaluate, emptyState: emptyState, seed: seed,
     parseDays: parseDays, parseYesNo: parseYesNo, money: money, dayList: dayList,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = HF;
