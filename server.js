@@ -76,12 +76,40 @@ async function postMessage(to, text) {
   });
   return { ok: res.ok, status: res.status, text: await res.text() };
 }
+// Free Twilio trial numbers accept only Content templates (error 21654 "ContentSid Required").
+// One template with a single variable carries any bot text.
+const CONTENT_API = process.env.TWILIO_CONTENT_API || "https://content.twilio.com";
+let contentSid = process.env.TWILIO_CONTENT_SID || "";
+const twAuth = () => "Basic " + Buffer.from(TWILIO_SID + ":" + TWILIO_TOKEN).toString("base64");
+async function ensureContent() {
+  if (contentSid) return contentSid;
+  try {
+    const list = await (await fetch(`${CONTENT_API}/v1/Content?PageSize=100`, { headers: { Authorization: twAuth() } })).json();
+    const found = (list.contents || []).filter((c) => c.friendly_name === "hireflow_text")[0];
+    if (found) return (contentSid = found.sid);
+    const res = await fetch(`${CONTENT_API}/v1/Content`, {
+      method: "POST",
+      headers: { Authorization: twAuth(), "Content-Type": "application/json" },
+      body: JSON.stringify({ friendly_name: "hireflow_text", language: "ru", variables: { 1: "text" }, types: { "twilio/text": { body: "{{1}}" } } }),
+    });
+    const body = await res.json();
+    if (!res.ok) { console.error("Twilio content create failed", res.status, JSON.stringify(body).slice(0, 300)); return ""; }
+    console.log("Twilio content template created");
+    return (contentSid = body.sid);
+  } catch (e) {
+    console.error("Twilio content error", e.message);
+    return "";
+  }
+}
 async function sendTwilio(to, text) {
-  const form = new URLSearchParams({ From: TWILIO_FROM, To: "whatsapp:+" + String(to).replace(/\D/g, ""), Body: text.slice(0, 1600) });
+  const form = new URLSearchParams({ From: TWILIO_FROM, To: "whatsapp:+" + String(to).replace(/\D/g, "") });
+  const sid = process.env.TWILIO_USE_BODY === "1" ? "" : await ensureContent();
+  if (sid) { form.set("ContentSid", sid); form.set("ContentVariables", JSON.stringify({ 1: text.slice(0, 1500) })); }
+  else form.set("Body", text.slice(0, 1600));
   try {
     const res = await fetch(`${TWILIO_API}/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
       method: "POST",
-      headers: { Authorization: "Basic " + Buffer.from(TWILIO_SID + ":" + TWILIO_TOKEN).toString("base64"), "Content-Type": "application/x-www-form-urlencoded" },
+      headers: { Authorization: twAuth(), "Content-Type": "application/x-www-form-urlencoded" },
       body: form.toString(),
     });
     const body = await res.text();
