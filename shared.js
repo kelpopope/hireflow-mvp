@@ -276,7 +276,9 @@
       var v = s.vacancies.filter(function (x) { return x.code === m[0]; })[0];
       if (v) return v;
     }
-    var open = s.vacancies.filter(function (x) { return x.active !== false; });
+    // Without a code, real candidates go to the newest real vacancy, never to an interview scenario.
+    var open = s.vacancies.filter(function (x) { return x.active !== false && !x.scenario; });
+    if (!open.length) open = s.vacancies.filter(function (x) { return x.active !== false; });
     return open[open.length - 1] || null;
   }
 
