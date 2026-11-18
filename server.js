@@ -23,6 +23,11 @@ const TWILIO_API = process.env.TWILIO_API || "https://api.twilio.com";
 const TWILIO_ON = !!(TWILIO_SID && TWILIO_TOKEN);
 const META_ON = !!(WHATSAPP_TOKEN && PHONE_NUMBER_ID);
 const crypto = require("crypto");
+// Telegram bot (free, no limits on recipients). Set TELEGRAM_BOT_TOKEN from @BotFather.
+const TG_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
+const TG_ON = !!TG_TOKEN;
+const TG_API = process.env.TELEGRAM_API || "https://api.telegram.org";
+let tgUser = "";
 
 // ---------- storage ----------
 let pool = null;
@@ -119,7 +124,24 @@ async function sendTwilio(to, text) {
     console.error("Twilio send error", e.message);
   }
 }
+function tgHtml(text) {
+  const esc = String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return esc.replace(/\*([^*\n]+)\*/g, "<b>$1</b>").replace(/(^|\s)_([^_\n]+)_(?=\s|$)/g, "$1<i>$2</i>").replace(/WhatsApp/g, "Telegram");
+}
+async function sendTelegram(chatId, text) {
+  try {
+    const res = await fetch(`${TG_API}/bot${TG_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text: tgHtml(text).slice(0, 4000), parse_mode: "HTML", disable_web_page_preview: true }),
+    });
+    if (!res.ok) console.error("Telegram send failed", res.status, (await res.text()).slice(0, 200));
+  } catch (e) {
+    console.error("Telegram send error", e.message);
+  }
+}
 async function sendWhatsApp(to, text) {
+  if (to && String(to).indexOf("tg:") === 0) return TG_ON ? sendTelegram(String(to).slice(3), text) : undefined;
   if (TWILIO_ON && to) return sendTwilio(to, text);
   if (!META_ON || !to) return;
   try {
@@ -155,7 +177,7 @@ function ownerOnly(req, res, next) {
 
 app.get("/api/state", async (req, res) => {
   const s = await load();
-  res.json({ state: s, live: TWILIO_ON || META_ON, waNumber: process.env.WHATSAPP_DISPLAY_NUMBER || (TWILIO_ON ? TWILIO_FROM.replace("whatsapp:", "") : ""), waJoin: process.env.TWILIO_JOIN_WORDS || "", needsKey: !!ADMIN_KEY });
+  res.json({ state: s, live: TG_ON || TWILIO_ON || META_ON, messenger: TG_ON ? "Telegram" : "WhatsApp", tgBot: tgUser, waNumber: process.env.WHATSAPP_DISPLAY_NUMBER || (TWILIO_ON ? TWILIO_FROM.replace("whatsapp:", "") : ""), waJoin: TG_ON ? "" : process.env.TWILIO_JOIN_WORDS || "", needsKey: !!ADMIN_KEY });
 });
 
 // Owner actions and the in-page simulator use the same engine as WhatsApp.
@@ -272,12 +294,48 @@ function startPolling() {
   console.log("Polling Twilio for incoming WhatsApp messages");
 }
 
+// Telegram long polling: no webhook or public certificate needed.
+let tgOffset = 0;
+async function pollTelegram() {
+  for (;;) {
+    try {
+      const res = await fetch(`${TG_API}/bot${TG_TOKEN}/getUpdates?timeout=25&offset=${tgOffset}&allowed_updates=%5B%22message%22%5D`);
+      const body = await res.json();
+      if (!body.ok) { console.error("Telegram poll failed", JSON.stringify(body).slice(0, 200)); await new Promise((r) => setTimeout(r, 5000)); continue; }
+      for (const u of body.result || []) {
+        tgOffset = u.update_id + 1;
+        const m = u.message;
+        if (!m || !m.chat || m.chat.type !== "private") continue;
+        let text = m.text || (m.contact ? m.contact.phone_number : "") || "?";
+        const start = /^\/start(?:\s+(.+))?$/.exec(text.trim());
+        if (start) text = start[1] ? start[1].replace(/_/g, "-") : "/start";
+        const name = [m.from && m.from.first_name, m.from && m.from.last_name].filter(Boolean).join(" ");
+        await run({ type: "incoming", channel: "whatsapp", phone: "tg:" + m.chat.id, profileName: name, text, now: Date.now() });
+      }
+    } catch (e) {
+      console.error("Telegram poll error", e.message);
+      await new Promise((r) => setTimeout(r, 5000));
+    }
+  }
+}
+async function startTelegram() {
+  try {
+    const me = await (await fetch(`${TG_API}/bot${TG_TOKEN}/getMe`)).json();
+    tgUser = (me.result && me.result.username) || "";
+    await fetch(`${TG_API}/bot${TG_TOKEN}/deleteWebhook`);
+    console.log("Telegram bot @" + tgUser);
+  } catch (e) { console.error("Telegram start error", e.message); }
+  pollTelegram();
+  if (process.env.PUBLIC_URL) setInterval(() => { fetch(process.env.PUBLIC_URL + "/healthz").catch(() => {}); }, 10 * 60 * 1000);
+}
+
 app.get("/shared.js", (req, res) => res.sendFile(path.join(__dirname, "shared.js")));
 app.use(express.static(path.join(__dirname, "public")));
 app.get("/healthz", (req, res) => res.send("ok"));
 app.get("/privacy", (req, res) => res.sendFile(path.join(__dirname, "public", "privacy.html")));
 
 initStore().then(() => {
-  if (TWILIO_ON && process.env.TWILIO_POLL === "1") startPolling();
-  app.listen(PORT, () => console.log("HireFlow MVP on port " + PORT + (TWILIO_ON ? " (WhatsApp via Twilio)" : META_ON ? " (WhatsApp via Meta)" : " (WhatsApp off)")));
+  if (TG_ON) startTelegram();
+  else if (TWILIO_ON && process.env.TWILIO_POLL === "1") startPolling();
+  app.listen(PORT, () => console.log("HireFlow MVP on port " + PORT + (TG_ON ? " (Telegram bot)" : TWILIO_ON ? " (WhatsApp via Twilio)" : META_ON ? " (WhatsApp via Meta)" : " (WhatsApp off)")));
 });

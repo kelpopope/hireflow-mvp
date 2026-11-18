@@ -476,7 +476,7 @@ form.f.vf{display:flex;flex-direction:column;gap:12px}
 "use strict";
 var HF = window.HF;
 var KEY = "hf_mvp_state_v1", LKEY = "hf_mvp_lang";
-var api = false, live = false, waNumber = "", waJoin = "", state = HF.emptyState();
+var api = false, live = false, waNumber = "", waJoin = "", tgBot = "", messenger = "WhatsApp", state = HF.emptyState();
 var ui = { lang: "en", tab: "cands", vacancyId: null, simId: null, open: {}, filter: "all" };
 try { var sl = localStorage.getItem(LKEY); if (sl) ui.lang = sl; } catch (e) {}
 
@@ -542,10 +542,15 @@ var I18N = {
     sumHired:"Наняты", sumOk:"Работают 30+ дней", sumRisk:"Могут уйти", sumLeft:"Ушли", gCafe:"Кафе", gSched:"График", gPay:"Оплата и работа"
   }
 };
+// When the server runs the Telegram bot, the same page talks about Telegram instead of WhatsApp.
+function useMessenger(name){
+  ["en","ru"].forEach(function(l){ Object.keys(I18N[l]).forEach(function(k){ if (typeof I18N[l][k] === "string") I18N[l][k] = I18N[l][k].replace(/WhatsApp/g, name).replace(/wa\.me/g, "t.me"); }); });
+  document.querySelectorAll("[data-i]").forEach(function(el){ el.textContent = t(el.getAttribute("data-i")); });
+}
 function t(k){ var v = I18N[ui.lang][k]; return v === undefined ? (I18N.en[k] === undefined ? k : I18N.en[k]) : v; }
 function fill(s, o){ return String(s).replace(/\{(\w+)\}/g, function(_, k){ return o[k] != null ? o[k] : ""; }); }
 function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]; }); }
-function fmtMsg(s){ return esc(s).replace(/\*([^*\n]+)\*/g, "<b>$1</b>"); }
+function fmtMsg(s){ return esc(messenger === "WhatsApp" ? s : String(s).replace(/WhatsApp/g, messenger)).replace(/\*([^*\n]+)\*/g, "<b>$1</b>"); }
 function $(id){ return document.getElementById(id); }
 function time(ts){ var d = new Date(ts); return d.toLocaleTimeString(ui.lang === "ru" ? "ru-RU" : "en-GB", {hour:"2-digit", minute:"2-digit"}); }
 function date(ts){ var d = new Date(ts); return d.toLocaleDateString(ui.lang === "ru" ? "ru-RU" : "en-GB", {day:"numeric", month:"short"}); }
@@ -578,7 +583,8 @@ function boot(){
   }).then(function(d){
     if (done || !d || !d.state) throw new Error();
     done = true; clearTimeout(timer);
-    api = true; live = !!d.live; waNumber = d.waNumber || ""; waJoin = d.waJoin || ""; state = d.state;
+    api = true; live = !!d.live; waNumber = d.waNumber || ""; waJoin = d.waJoin || ""; tgBot = d.tgBot || ""; messenger = d.messenger || "WhatsApp";
+    if (messenger !== "WhatsApp") useMessenger(messenger); state = d.state;
     if (!state.vacancies.length) return act({ type:"reset", seed:true, lang: ui.lang });
     render();
     setInterval(poll, 4000);
@@ -821,7 +827,7 @@ function vacHTML(v){
   var days = [1,2,3,4,5,6,7].map(function(i){ return '<label><input type="checkbox" name="days" value="' + i + '"' + (d.days.indexOf(i) >= 0 ? " checked" : "") + ">" + DN[i] + "</label>"; }).join("");
   var html = ptitle('<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5h8l-.8 4H4.8z M3 6.5h10v6a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 3 12.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>', v ? t("vacTitle") : t("needVacancy")) + '<p class="note" style="margin:0 0 14px">' + t("vacNote") + "</p>";
   if (v) {
-    var link = live && waNumber ? "https://wa.me/" + waNumber.replace(/\D/g, "") + "?text=" + encodeURIComponent(v.code) : "";
+    var link = live && tgBot ? "https://t.me/" + tgBot + "?start=" + encodeURIComponent(v.code) : live && waNumber ? "https://wa.me/" + waNumber.replace(/\D/g, "") + "?text=" + encodeURIComponent(v.code) : "";
     html += '<div class="ticket"><span class="tk" aria-hidden="true">' + TIC.wa + '</span><b>' + t("linkTitle") + '</b><div class="tline">' + (link ? "<span>" + t("linkLive") + "</span><code id=\"walink\">" + esc(link) + '</code><button type="button" class="btn" data-act="copy">' + t("copy") + "</button>" + (waJoin ? '<span class="note">' + fill(t("joinFirst"), { join: "<code>" + esc(waJoin) + "</code>" }) + "</span>" : "") : "<span>" + t("linkDemo") + "</span>") + "</div></div>";
   }
   function inp(name, label, val, type, wide){ return '<div class="field' + (wide ? " wide" : "") + '"><label for="vf-' + name + '">' + label + '</label><input id="vf-' + name + '" name="' + name + '" type="' + (type || "text") + '" value="' + esc(val) + '" required></div>'; }
@@ -892,7 +898,7 @@ function renderPhone(v){
   if (ui.simId && !cs.some(function(c){ return c.id === ui.simId; })) ui.simId = null;
   if (ui.simId === null && ui._simInit !== true && cs.length) { ui.simId = cs[cs.length - 1].id; ui._simInit = true; }
   var sel = $("csel");
-  sel.innerHTML = '<option value="">' + esc(t("newCand")) + "</option>" + cs.slice().reverse().map(function(c){ return '<option value="' + c.id + '"' + (c.id === ui.simId ? " selected" : "") + ">" + esc((c.name || "…") + (c.channel === "whatsapp" ? " · WhatsApp" : "")) + "</option>"; }).join("");
+  sel.innerHTML = '<option value="">' + esc(t("newCand")) + "</option>" + cs.slice().reverse().map(function(c){ return '<option value="' + c.id + '"' + (c.id === ui.simId ? " selected" : "") + ">" + esc((c.name || "…") + (c.channel === "whatsapp" ? " · " + messenger : "")) + "</option>"; }).join("");
   $("phoneTitle").textContent = v ? v.cafe : "HireFlow";
   var c = cs.filter(function(x){ return x.id === ui.simId; })[0];
   var box = $("msgs");
@@ -911,7 +917,7 @@ function renderPhone(v){
   }
   var dis = c && c.channel === "whatsapp";
   $("msgIn").disabled = !!dis; $("msgIn").placeholder = dis ? t("wa") : (ui.lang === "ru" ? "Сообщение" : "Message");
-  $("under").innerHTML = live && waNumber ? fill(t("underLive"), { code: "<code>" + esc(v.code) + "</code>", num: "<b>" + esc(waNumber) + "</b>" }) + (waJoin ? " " + fill(t("joinFirst"), { join: "<code>" + esc(waJoin) + "</code>" }) : "") : t("underDemo");
+  $("under").innerHTML = live && (tgBot || waNumber) ? fill(t("underLive"), { code: "<code>" + esc(v.code) + "</code>", num: "<b>" + esc(tgBot ? "@" + tgBot : waNumber) + "</b>" }) + (waJoin ? " " + fill(t("joinFirst"), { join: "<code>" + esc(waJoin) + "</code>" }) : "") : t("underDemo");
 }
 function sendSim(text){
   var v = curV(); if (!v || !text) return;

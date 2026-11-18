@@ -42,6 +42,14 @@ Environment variables:
 | `DATABASE_URL` | Optional Postgres URL; without it data is kept in `data.json` and is lost on redeploy |
 | `ADMIN_KEY` | Optional key that owner actions must send in the `x-admin-key` header |
 
+## Connect Telegram (used for the pilot)
+
+1. In Telegram, open @BotFather, send `/newbot`, choose a name and a username ending in `bot`.
+2. Render → Environment: `TELEGRAM_BOT_TOKEN` = the token from BotFather; `PUBLIC_URL` = the site address (keeps the free service awake).
+3. Candidates open `https://t.me/<bot>?start=HF-101` (shown on the Vacancy tab) or write the vacancy code to the bot.
+
+When the Telegram token is set, the page and the bot say "Telegram" instead of "WhatsApp"; the engine is the same.
+
 ## Connect WhatsApp through Twilio (recommended for the pilot)
 
 Meta restricts new, unverified business accounts. Twilio's WhatsApp sandbox works without business verification.
