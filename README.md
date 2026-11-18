@@ -51,6 +51,8 @@ Meta restricts new, unverified business accounts. Twilio's WhatsApp sandbox work
 3. Render → Environment: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_JOIN_WORDS` (the join words). `TWILIO_WHATSAPP_FROM` defaults to the sandbox number `whatsapp:+14155238886`.
 4. Each tester sends the join words once, then the vacancy code (for example `HF-101`).
 
+Free "Limited trial" accounts cannot set the incoming webhook. Then set `TWILIO_POLL=1`, `TWILIO_WHATSAPP_FROM` to the trial number (for example `whatsapp:+17372508034`) and `PUBLIC_URL`; the server asks Twilio for new messages every 4 seconds and pings itself so the free service does not sleep.
+
 Incoming requests are checked with Twilio's signature. When Twilio is set, it is used instead of Meta.
 
 ## Connect WhatsApp through Meta

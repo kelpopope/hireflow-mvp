@@ -19,6 +19,7 @@ const GRAPH = "https://graph.facebook.com/v21.0";
 const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID || "";
 const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN || "";
 const TWILIO_FROM = process.env.TWILIO_WHATSAPP_FROM || "whatsapp:+14155238886";
+const TWILIO_API = process.env.TWILIO_API || "https://api.twilio.com";
 const TWILIO_ON = !!(TWILIO_SID && TWILIO_TOKEN);
 const META_ON = !!(WHATSAPP_TOKEN && PHONE_NUMBER_ID);
 const crypto = require("crypto");
@@ -78,7 +79,7 @@ async function postMessage(to, text) {
 async function sendTwilio(to, text) {
   const form = new URLSearchParams({ From: TWILIO_FROM, To: "whatsapp:+" + String(to).replace(/\D/g, ""), Body: text.slice(0, 1600) });
   try {
-    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
+    const res = await fetch(`${TWILIO_API}/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
       method: "POST",
       headers: { Authorization: "Basic " + Buffer.from(TWILIO_SID + ":" + TWILIO_TOKEN).toString("base64"), "Content-Type": "application/x-www-form-urlencoded" },
       body: form.toString(),
@@ -208,11 +209,47 @@ app.post("/twilio", async (req, res) => {
   }
 });
 
+// Free Twilio trials cannot set an incoming-message webhook, so the server can instead ask Twilio
+// for new incoming messages every few seconds (TWILIO_POLL=1).
+const seen = new Set();
+let pollReady = false;
+async function pollTwilio() {
+  const to = TWILIO_FROM;
+  const day = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const url = `${TWILIO_API}/2010-04-01/Accounts/${TWILIO_SID}/Messages.json?To=${encodeURIComponent(to)}&DateSent%3E=${day}&PageSize=50`;
+  try {
+    const res = await fetch(url, { headers: { Authorization: "Basic " + Buffer.from(TWILIO_SID + ":" + TWILIO_TOKEN).toString("base64") } });
+    if (!res.ok) { console.error("Twilio poll failed", res.status, (await res.text()).slice(0, 200)); return; }
+    const list = ((await res.json()).messages || []).filter((m) => m.direction === "inbound");
+    list.sort((a, b) => new Date(a.date_created) - new Date(b.date_created));
+    for (const m of list) {
+      if (seen.has(m.sid)) continue;
+      seen.add(m.sid);
+      // On start, skip old history but keep messages from the last two minutes (sent while the server was waking up).
+      if (!pollReady && Date.now() - new Date(m.date_created).getTime() > 120000) continue;
+      const phone = String(m.from || "").replace(/\D/g, "");
+      if (!phone || /^join\s/i.test(m.body || "")) continue;
+      await run({ type: "incoming", channel: "whatsapp", phone, profileName: "", text: m.body || "?", now: Date.now() });
+    }
+    pollReady = true;
+  } catch (e) {
+    console.error("Twilio poll error", e.message);
+  }
+}
+function startPolling() {
+  let busy = false;
+  setInterval(async () => { if (busy) return; busy = true; await pollTwilio(); busy = false; }, 4000);
+  // Free Render services sleep without incoming traffic; a ping through the public URL keeps polling alive.
+  if (process.env.PUBLIC_URL) setInterval(() => { fetch(process.env.PUBLIC_URL + "/healthz").catch(() => {}); }, 10 * 60 * 1000);
+  console.log("Polling Twilio for incoming WhatsApp messages");
+}
+
 app.get("/shared.js", (req, res) => res.sendFile(path.join(__dirname, "shared.js")));
 app.use(express.static(path.join(__dirname, "public")));
 app.get("/healthz", (req, res) => res.send("ok"));
 app.get("/privacy", (req, res) => res.sendFile(path.join(__dirname, "public", "privacy.html")));
 
 initStore().then(() => {
+  if (TWILIO_ON && process.env.TWILIO_POLL === "1") startPolling();
   app.listen(PORT, () => console.log("HireFlow MVP on port " + PORT + (TWILIO_ON ? " (WhatsApp via Twilio)" : META_ON ? " (WhatsApp via Meta)" : " (WhatsApp off)")));
 });
