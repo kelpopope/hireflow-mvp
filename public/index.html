@@ -587,7 +587,14 @@ function boot(){
 function poll(){
   if (document.hidden) return;
   fetch("api/state", { cache:"no-store" }).then(function(r){ return r.json(); }).then(function(d){
-    if (d && d.state && d.state.updatedAt !== state.updatedAt) { state = d.state; render(); }
+    if (d && d.state && d.state.updatedAt !== state.updatedAt) {
+      var known = state.candidates.map(function(x){ return x.id; });
+      state = d.state;
+      // A new WhatsApp conversation opens in the phone view at once.
+      var fresh = state.candidates.filter(function(x){ return x.channel === "whatsapp" && known.indexOf(x.id) < 0; }).pop();
+      if (fresh) { ui.vacancyId = fresh.vacancyId; ui.simId = fresh.id; }
+      render();
+    }
   }).catch(function(){});
 }
 function startLocal(){
@@ -885,7 +892,7 @@ function renderPhone(v){
   if (ui.simId && !cs.some(function(c){ return c.id === ui.simId; })) ui.simId = null;
   if (ui.simId === null && ui._simInit !== true && cs.length) { ui.simId = cs[cs.length - 1].id; ui._simInit = true; }
   var sel = $("csel");
-  sel.innerHTML = '<option value="">' + esc(t("newCand")) + "</option>" + cs.slice().reverse().map(function(c){ return '<option value="' + c.id + '"' + (c.id === ui.simId ? " selected" : "") + ">" + esc(c.name || "…") + "</option>"; }).join("");
+  sel.innerHTML = '<option value="">' + esc(t("newCand")) + "</option>" + cs.slice().reverse().map(function(c){ return '<option value="' + c.id + '"' + (c.id === ui.simId ? " selected" : "") + ">" + esc((c.name || "…") + (c.channel === "whatsapp" ? " · WhatsApp" : "")) + "</option>"; }).join("");
   $("phoneTitle").textContent = v ? v.cafe : "HireFlow";
   var c = cs.filter(function(x){ return x.id === ui.simId; })[0];
   var box = $("msgs");
